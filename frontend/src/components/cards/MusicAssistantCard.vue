@@ -23,7 +23,7 @@
 
       <!-- Track info -->
       <div class="ma-info">
-        <div class="ma-track" :style="{ color: accentFg }">{{ currentTrack?.name ?? '—' }}</div>
+        <div class="ma-track" :style="{ color: accentFg }">{{ trackName }}</div>
         <div class="ma-artist" :style="{ color: accentFg }">{{ artist }}</div>
         <div v-if="album" class="ma-album" :style="{ color: accentFg, opacity: 0.7 }">{{ album }}</div>
       </div>
@@ -130,14 +130,36 @@ const activeQueue    = computed(() => ma.queues.value[activePlayerId.value]);
 const isPlaying = computed(() => activePlayer.value?.state === 'playing');
 
 // ── Current track ──────────────────────────────────────────────────────────
-const currentTrack = computed(() => activeQueue.value?.current_item?.media_item ?? activeQueue.value?.current_item);
+const currentItem  = computed(() => activeQueue.value?.current_item);
+const currentTrack = computed(() => currentItem.value?.media_item ?? currentItem.value);
+
+// Radio stations carry live ICY metadata in streamdetails.stream_title ("Artist - Song")
+const streamTitle = computed(() => currentItem.value?.streamdetails?.stream_title ?? '');
+
+const trackName = computed(() => {
+  if (streamTitle.value) {
+    const parts = streamTitle.value.split(' - ');
+    return parts.length > 1 ? parts.slice(1).join(' - ') : streamTitle.value;
+  }
+  return currentTrack.value?.name ?? '—';
+});
+
 const artist = computed(() => {
+  if (streamTitle.value) {
+    const parts = streamTitle.value.split(' - ');
+    return parts.length > 1 ? parts[0] : '';
+  }
   const t = currentTrack.value;
   if (!t) return '';
   if (t.artists?.length) return t.artists.map(a => a.name).join(', ');
   return t.artist_str ?? '';
 });
-const album = computed(() => currentTrack.value?.album?.name ?? '');
+
+const album = computed(() => {
+  // For radio show station name as album fallback
+  if (streamTitle.value) return currentTrack.value?.name ?? '';
+  return currentTrack.value?.album?.name ?? '';
+});
 
 const elapsed  = computed(() => activeQueue.value?.elapsed_time ?? 0);
 const duration = computed(() => currentTrack.value?.duration ?? activeQueue.value?.current_item?.duration ?? 0);

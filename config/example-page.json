@@ -1,0 +1,67 @@
+{
+  "name": "Living Room",
+  "path": "/living-room",
+  "icon": "home",
+  "order": 1,
+  "mobile": true,
+  "card_width": 150,
+  "card_height": 50,
+  "grid_spacing": 8,
+  "cards": [
+    {
+      "type": "weather",
+      "title": "Weather",
+      "position": { "x": 1, "y": 1, "w": 4, "h": 4 },
+      "mobile_show": true,
+      "mobile_order": 0,
+      "lat": 59.0,
+      "lon": 18.0
+    },
+    {
+      "type": "sensor",
+      "title": "Temperature",
+      "mqtt_topic": "home/sensor/temperature",
+      "unit": "°C",
+      "position": { "x": 5, "y": 1, "w": 2, "h": 2 },
+      "mobile_show": true,
+      "mobile_order": 1
+    },
+    {
+      "type": "switch",
+      "title": "Living Light",
+      "mqtt_topic": "home/switch/living_light",
+      "ha_entity_id": "light.living_room",
+      "position": { "x": 5, "y": 3, "w": 2, "h": 2 },
+      "mobile_show": true,
+      "mobile_order": 2
+    },
+    {
+      "type": "musicassistant",
+      "title": "Music",
+      "ma_url": "http://192.168.1.x:8095",
+      "ma_token": "your-ma-token",
+      "position": { "x": 1, "y": 5, "w": 5, "h": 6 },
+      "mobile_show": true,
+      "mobile_order": 3
+    },
+    {
+      "type": "notification",
+      "title": "Notifications",
+      "announcement_base_url": "http://192.168.1.x:3000",
+      "max_items": 20,
+      "mobile_show": true,
+      "mobile_order": 4,
+      "position": { "x": 1, "y": 11, "w": 5, "h": 3 },
+      "items": [
+        {
+          "title": "Motion detected",
+          "notification_text": "Motion detected at front door",
+          "trigger_event": "",
+          "icon": "cctv",
+          "sound1": "alert.mp3",
+          "sound2": ""
+        }
+      ]
+    }
+  ]
+}

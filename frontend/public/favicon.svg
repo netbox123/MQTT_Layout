@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- Left arcs -->
+  <path d="M 9.9,5.9 A 3,3,0,0,0,9.9,10.1"     fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M 8.5,4.5 A 5,5,0,0,0,8.5,11.5"     fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M 6.9,2.9 A 7.2,7.2,0,0,0,6.9,13.1" fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- Right arcs -->
+  <path d="M 14.1,5.9 A 3,3,0,0,1,14.1,10.1"     fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M 15.5,4.5 A 5,5,0,0,1,15.5,11.5"     fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M 17.1,2.9 A 7.2,7.2,0,0,1,17.1,13.1" fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- Orange needle -->
+  <line x1="12" y1="9.8" x2="12" y2="23" stroke="#E87C00" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- Orange dot -->
+  <circle cx="12" cy="8" r="2.1" fill="#E87C00"/>
+</svg>
