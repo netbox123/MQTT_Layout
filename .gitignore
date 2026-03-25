@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build output
+frontend/dist/
+
+# Sensitive config files (use *.example.json as templates)
+config/mqtt.json
+config/homeassistant.json
+config/pages/
+
+# Runtime data
+config/notifications.json
+config/notification_events.json
+
+# Sounds (add your own)
+sounds/alert_sounds/*
+sounds/speech_sounds/*
+!sounds/alert_sounds/.gitkeep
+!sounds/speech_sounds/.gitkeep
+
+# OS
+.DS_Store

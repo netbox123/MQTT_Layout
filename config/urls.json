@@ -1,0 +1,90 @@
+{
+  "categories": [
+    {
+      "name": "Home",
+      "order": 1
+    },
+    {
+      "name": "Apple",
+      "order": 2
+    },
+    {
+      "name": "Network",
+      "order": 3
+    }
+  ],
+  "urls": [
+    {
+      "name": "Router",
+      "url": "http://192.168.0.1",
+      "order": 2,
+      "category": "Network"
+    },
+    {
+      "name": "Telegraaf",
+      "url": "https://www.telegraaf.nl",
+      "category": "Apple",
+      "order": 4
+    },
+    {
+      "name": "test",
+      "url": "",
+      "category": "Network",
+      "order": 3
+    },
+    {
+      "name": "testing",
+      "url": "",
+      "category": "Apple",
+      "order": 1
+    },
+    {
+      "name": "Facebook",
+      "url": "https://www.facebook.com",
+      "category": "Home",
+      "order": 0
+    },
+    {
+      "name": "Hass 12",
+      "url": "http://192.168.0.12:8123",
+      "category": "Home",
+      "order": 1
+    },
+    {
+      "name": "Homeassistant",
+      "url": "http://192.168.0.20:8123",
+      "category": "Home",
+      "order": 2
+    },
+    {
+      "name": "CasaOS",
+      "url": "http://192.168.0.20/#/login",
+      "category": "Home",
+      "order": 3
+    },
+    {
+      "name": "Victron hus",
+      "url": "http://192.168.0.10/gui-v2/",
+      "category": "Home",
+      "order": 4
+    },
+    {
+      "name": "Victron shed",
+      "url": "http://192.168.0.60/gui-v2/",
+      "category": "Home",
+      "order": 5
+    },
+    {
+      "name": "Site Dashboard",
+      "url": "http://192.168.0.20:9000",
+      "category": "Home",
+      "order": 6
+    },
+    {
+      "name": "Discord",
+      "url": "https://discord.com/channels/@me",
+      "category": "Home",
+      "order": 7
+    }
+  ]
+}

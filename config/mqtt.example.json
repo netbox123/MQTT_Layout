@@ -1,0 +1,10 @@
+{
+  "broker_url": "mqtt://192.168.1.x:1883",
+  "client_id": "mqtt-dashboard",
+  "username": "your-mqtt-user",
+  "password": "your-mqtt-password",
+  "reconnect_period_ms": 5000,
+  "connect_timeout_ms": 10000,
+  "clean_session": true,
+  "tls": false
+}
