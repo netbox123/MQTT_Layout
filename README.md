@@ -14,7 +14,7 @@ A local-first, MQTT-driven home automation dashboard built with **Vue 3 + Expres
   - Plays sounds locally and via Music Assistant on all active players
   - Edge detection: fires only when a value *crosses* a threshold (not on every message)
   - String equality trigger (`= ON`) for binary sensors (e.g. motion detection)
-- **Victron integration** — solar, battery, inverter data via MQTT
+- **Victron integration** — solar, battery, inverter data via MQTT; Victron GX GUI v2 proxied and made available outside the local network via Caddy
 - **Home Assistant integration** — entity control via HA REST API
 - **URL launcher** — categorised links with tab navigation
 - **Recipe viewer** — stored locally, no external services
