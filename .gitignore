@@ -19,5 +19,16 @@ sounds/speech_sounds/*
 !sounds/alert_sounds/.gitkeep
 !sounds/speech_sounds/.gitkeep
 
+# Environment
+.env
+
+# Victron GUI v2 binaries
+frontend/public/guiv2/*.wasm
+frontend/public/guiv2/*.wasm.gz
+frontend/public/guiv2/*.wasm.sha256
+frontend/public/guiv2/*.wasm.size
+frontend/public/guiv2/venus-gui-v2.js
+frontend/public/guiv2/qtloader.js
+
 # OS
 .DS_Store
