@@ -19,7 +19,8 @@ A local-first, MQTT-driven home automation dashboard built with **Vue 3 + Expres
 - **URL launcher** — categorised links with tab navigation
 - **Recipe viewer** — stored locally, no external services
 - **Mobile layout** — responsive mobile view at `/m/<page-slug>`
-- **Edit mode** — drag-to-resize grid, add/remove/configure cards in the browser
+- **Edit mode** — all cards support drag-and-drop repositioning and grid resizing directly in the browser; add, remove and configure cards without touching config files
+- **Mobile layout** — dedicated responsive view at `/m/<page-slug>` with per-card mobile visibility and ordering
 - **Caddy reverse proxy** — HTTPS with basic auth, WebSocket support
 
 ## Stack
