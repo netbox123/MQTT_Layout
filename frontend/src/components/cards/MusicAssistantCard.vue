@@ -79,6 +79,7 @@
 
 <script>
 export const icon = '🎵';
+export const label = 'Music Assistant';
 </script>
 
 <script setup>

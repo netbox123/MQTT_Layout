@@ -4,6 +4,16 @@
       <div class="modal">
         <h2 class="modal-title">{{ isNew ? 'New Music Assistant Card' : 'Edit Music Assistant Card' }}</h2>
         <div class="fields">
+          <div class="mobile-row">
+            <label class="field-label">Mobile</label>
+            <label class="field-checkbox">
+              <input type="checkbox" :checked="fields.mobile_show" @change="fields.mobile_show = $event.target.checked" />
+              <span>{{ fields.mobile_show ? 'Yes' : 'No' }}</span>
+            </label>
+            <label class="field-label">Order</label>
+            <input class="field-input field-input--short" type="number" v-model.number="fields.mobile_order" />
+          </div>
+
           <label class="field-label">ma url</label>
           <input class="field-input" type="text" v-model="fields.ma_url" />
 
@@ -27,15 +37,6 @@
               @input="onVolume" class="field-input vol-slider" />
             <span class="vol-val">{{ localVolume }}%</span>
           </div>
-
-          <label class="field-label">mobile show</label>
-          <label class="field-checkbox">
-            <input type="checkbox" :checked="fields.mobile_show" @change="fields.mobile_show = $event.target.checked" />
-            <span>{{ fields.mobile_show ? 'Yes' : 'No' }}</span>
-          </label>
-
-          <label class="field-label">mobile order</label>
-          <input class="field-input" type="number" v-model.number="fields.mobile_order" />
 
           <label class="field-label">shuffle</label>
           <div class="toggle-row">
@@ -192,6 +193,17 @@ function save() {
   gap: 0.5rem 1rem;
   align-items: center;
   overflow-y: auto;
+}
+
+.mobile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  grid-column: 1 / -1;
+}
+
+.field-input--short {
+  width: 8ch !important;
 }
 
 .field-label {

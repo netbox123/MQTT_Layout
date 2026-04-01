@@ -4,8 +4,18 @@
       <div class="modal">
         <h2 class="modal-title">{{ title || (isNew ? 'New Card' : 'Edit Card') }}</h2>
         <div class="fields">
+          <!-- Mobile + Order always on top -->
+          <div class="mobile-row">
+            <label class="field-label">Mobile</label>
+            <label class="field-checkbox">
+              <input type="checkbox" :checked="flatFields.mobile_show" @change="onInput('mobile_show', $event.target.checked)" />
+              <span>{{ flatFields.mobile_show ? 'Yes' : 'No' }}</span>
+            </label>
+            <label class="field-label">Order</label>
+            <input class="field-input field-input--short" type="number" min="0" :value="flatFields.mobile_order" @input="onInput('mobile_order', $event.target.value)" />
+          </div>
           <template v-for="(_, key) in flatFields" :key="key">
-            <template v-if="!key.startsWith('position_') && key !== 'type' && !hiddenFields.includes(key)">
+            <template v-if="!key.startsWith('position_') && key !== 'type' && key !== 'mobile_show' && key !== 'mobile_order' && !hiddenFields.includes(key)">
               <label class="field-label">{{ key.replace(/_/g, ' ') }}</label>
               <template v-if="key === 'icon'">
                 <button class="icon-field" type="button" @click="showIconPicker = true">
@@ -14,12 +24,6 @@
                   </svg>
                   <span class="icon-field-name">{{ flatFields.icon || 'Choose icon…' }}</span>
                 </button>
-              </template>
-              <template v-else-if="key === 'mobile_show'">
-                <label class="field-checkbox">
-                  <input type="checkbox" :checked="flatFields[key]" @change="onInput(key, $event.target.checked)" />
-                  <span>{{ flatFields[key] ? 'Yes' : 'No' }}</span>
-                </label>
               </template>
               <input
                 v-else
@@ -151,6 +155,17 @@ function save() {
   gap: 0.5rem 1rem;
   align-items: center;
   overflow-y: auto;
+}
+
+.mobile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  grid-column: 1 / -1;
+}
+
+.field-input--short {
+  width: 8ch !important;
 }
 
 .field-label {

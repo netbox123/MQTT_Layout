@@ -47,6 +47,20 @@
           <h2 class="modal-title">Edit Page</h2>
           <form @submit.prevent="submitRename">
             <div class="modal-fields">
+              <div class="modal-row">
+                <label class="modal-label">Mobile</label>
+                <label class="modal-checkbox">
+                  <input type="checkbox" v-model="editMobile" />
+                  <span>{{ editMobile ? 'Yes' : 'No' }}</span>
+                </label>
+                <label class="modal-label">Order</label>
+                <input
+                  v-model.number="editOrder"
+                  class="modal-input modal-input--short"
+                  type="number"
+                  min="0"
+                />
+              </div>
               <label class="modal-label">Name</label>
               <input
                 ref="renameInput"
@@ -84,18 +98,6 @@
                 min="40"
                 max="800"
               />
-              <label class="modal-label">Order</label>
-              <input
-                v-model.number="editOrder"
-                class="modal-input modal-input--short"
-                type="number"
-                min="0"
-              />
-              <label class="modal-label">Mobile</label>
-              <label class="modal-checkbox">
-                <input type="checkbox" v-model="editMobile" />
-                <span>{{ editMobile ? 'Yes' : 'No' }}</span>
-              </label>
             </div>
             <p v-if="editError" class="modal-error">{{ editError }}</p>
             <div class="modal-actions">
@@ -113,6 +115,10 @@
           <h2 class="modal-title">New Page</h2>
           <form @submit.prevent="submitPage">
             <div class="modal-fields">
+              <div class="modal-row">
+                <label class="modal-label">Order</label>
+                <input v-model.number="newOrder" class="modal-input modal-input--short" type="number" min="0" />
+              </div>
               <label class="modal-label">Name</label>
               <input
                 ref="nameInput"
@@ -132,8 +138,6 @@
               <input v-model.number="newCardHeight" class="modal-input modal-input--short" type="number" min="40" max="600" />
               <label class="modal-label">Card width (px)</label>
               <input v-model.number="newCardWidth" class="modal-input modal-input--short" type="number" min="40" max="800" />
-              <label class="modal-label">Order</label>
-              <input v-model.number="newOrder" class="modal-input modal-input--short" type="number" min="0" />
             </div>
             <p v-if="addError" class="modal-error">{{ addError }}</p>
             <div class="modal-actions">
@@ -610,6 +614,13 @@ async function submitPage() {
   align-items: center;
   gap: 0.5rem 0.75rem;
   margin-bottom: 0.25rem;
+}
+
+.modal-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  grid-column: 1 / -1;
 }
 
 .modal-label {

@@ -89,7 +89,7 @@ function fmtDateTime(ts) {
 .notif-log {
   flex: 1;
   overflow-y: auto;
-  margin: 0 -0.65rem;
+  margin: -2px -0.65rem 0;
 }
 
 .notif-empty {

@@ -6,11 +6,12 @@
     </div>
     <div class="camera-body" @click="!props.mobile && (expanded = true)">
       <img
-        v-if="useSnapshot ? snapshotSrc : streamSrc"
+        v-if="(useSnapshot ? snapshotSrc : streamSrc) && !streamError"
+        :key="streamKey"
         :src="useSnapshot ? snapshotSrc : streamSrc"
         class="camera-feed"
         alt="camera stream"
-        @error="streamError = true"
+        @error="onStreamError"
       />
       <div v-if="streamError" class="camera-error">Stream unavailable</div>
       <div v-if="!card.stream_url" class="camera-error">No stream URL configured</div>
@@ -57,6 +58,7 @@ const props = defineProps({
 const streamError = ref(false);
 const expanded = ref(false);
 const snapshotSrc = ref('');
+const streamKey = ref(0);
 let snapshotTimer = null;
 
 const isRtsp = computed(() => /^rtsps?:\/\//i.test(props.card.stream_url ?? ''));
@@ -78,15 +80,47 @@ function stopPolling() {
   snapshotTimer = null;
 }
 
-onMounted(() => { if (useSnapshot.value) startPolling(); });
-onUnmounted(() => stopPolling());
+let retryTimer = null;
+function onStreamError() {
+  streamError.value = true;
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => {
+    streamError.value = false;
+    streamKey.value++;
+  }, 5000);
+}
+
+function wakeStream() {
+  streamError.value = false;
+  streamKey.value++;
+  if (useSnapshot.value) refreshSnapshot();
+}
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') wakeStream();
+}
+
+function onDocClick() {
+  if (streamError.value) wakeStream();
+}
+
+onMounted(() => {
+  if (useSnapshot.value) startPolling();
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  document.addEventListener('click', onDocClick);
+});
+onUnmounted(() => {
+  stopPolling();
+  clearTimeout(retryTimer);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+  document.removeEventListener('click', onDocClick);
+});
 watch(useSnapshot, (val) => { val ? startPolling() : stopPolling(); });
 
 const streamSrc = computed(() => {
   const url = props.card.stream_url;
   if (!url) return null;
-  streamError.value = false;
-  return `/api/camera/stream?url=${encodeURIComponent(url)}`;
+  return `/api/camera/stream?url=${encodeURIComponent(url)}&_t=${streamKey.value}`;
 });
 </script>
 

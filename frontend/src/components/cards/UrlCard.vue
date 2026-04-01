@@ -194,6 +194,7 @@ defineExpose({ openAdd });
   min-height: 0;
   display: flex;
   flex-direction: column;
+  margin-top: 4px;
 }
 
 

@@ -10,25 +10,25 @@
       <label class="field-label">Pizzas</label>
       <input class="field-input" type="number" v-model.number="count" min="1" max="20" @focus="anyFocused=true" @blur="anyFocused=false" />
       <span class="result-label">Flour</span>
-      <span class="result-value">{{ flour }}<span class="result-unit">g</span></span>
+      <span class="result-value">{{ flour }}<span class="result-unit"> gr.</span></span>
 
       <!-- row 2 -->
       <label class="field-label">Weight (g)</label>
       <input class="field-input" type="number" v-model.number="weight" min="100" max="500" @focus="anyFocused=true" @blur="anyFocused=false" />
       <span class="result-label">Water</span>
-      <span class="result-value">{{ water }}<span class="result-unit">g</span></span>
+      <span class="result-value">{{ water }}<span class="result-unit"> gr.</span></span>
 
       <!-- row 3 -->
       <label class="field-label">Hydration%</label>
       <input class="field-input" type="number" v-model.number="hydration" min="50" max="90" @focus="anyFocused=true" @blur="anyFocused=false" />
       <span class="result-label">Salt</span>
-      <span class="result-value">{{ saltGrams }}<span class="result-unit">g</span></span>
+      <span class="result-value">{{ saltGrams }}<span class="result-unit"> gr.</span></span>
 
       <!-- row 4 -->
       <label class="field-label">Salt (%)</label>
       <input class="field-input" type="number" v-model.number="salt" min="0" max="5" step="0.1" @focus="anyFocused=true" @blur="anyFocused=false" />
       <span class="result-label result-label--total">Total</span>
-      <span class="result-value result-value--total">{{ total }}<span class="result-unit">g</span></span>
+      <span class="result-value result-value--total">{{ total }}<span class="result-unit"> gr.</span></span>
     </div>
   </div>
 </template>

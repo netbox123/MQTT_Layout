@@ -186,6 +186,15 @@ export function useMusicAssistant(maUrl, maToken) {
     };
   }
 
+  function onVisibilityChange() {
+    if (document.visibilityState === 'visible') {
+      if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+        connect();
+      }
+    }
+  }
+
+  document.addEventListener('visibilitychange', onVisibilityChange);
   connect();
 
   const api = {

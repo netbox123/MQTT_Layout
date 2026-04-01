@@ -4,15 +4,6 @@
       <div class="modal">
         <h2 class="modal-title">{{ isNew ? 'New Grid Card' : 'Edit Grid Card' }}</h2>
 
-        <div class="size-row">
-          <label class="size-label">H</label>
-          <input class="size-input" type="number" min="1" :value="local.rows"
-            @input="local.rows = Math.max(1, parseInt($event.target.value) || 1)" />
-          <label class="size-label">W</label>
-          <input class="size-input" type="number" min="1" :value="local.cols"
-            @input="local.cols = Math.max(1, parseInt($event.target.value) || 1)" />
-        </div>
-
         <div class="mobile-row">
           <label class="size-label">Mobile</label>
           <label class="field-checkbox">
@@ -21,6 +12,15 @@
           </label>
           <label class="size-label">Order</label>
           <input class="size-input" type="number" min="0" v-model.number="local.mobile_order" />
+        </div>
+
+        <div class="size-row">
+          <label class="size-label">H</label>
+          <input class="size-input" type="number" min="1" :value="local.rows"
+            @input="local.rows = Math.max(1, parseInt($event.target.value) || 1)" />
+          <label class="size-label">W</label>
+          <input class="size-input" type="number" min="1" :value="local.cols"
+            @input="local.cols = Math.max(1, parseInt($event.target.value) || 1)" />
         </div>
 
         <!-- Visual grid matching card dimensions -->

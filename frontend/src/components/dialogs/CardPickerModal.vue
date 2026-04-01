@@ -27,11 +27,14 @@ defineEmits(['pick', 'cancel']);
 
 const cardModules = import.meta.glob('../cards/*.vue', { eager: true });
 
-const cardTypes = Object.entries(cardModules).map(([path, mod]) => {
-  const name = path.split('/').pop().replace(/Card\.vue$/, '');
-  const id = name.toLowerCase();
-  return { id, label: name, icon: mod.icon ?? '🃏' };
-});
+const cardTypes = Object.entries(cardModules)
+  .filter(([path]) => /[A-Z][a-z]+Card\.vue$/.test(path.split('/').pop()))
+  .map(([path, mod]) => {
+    const name = path.split('/').pop().replace(/Card\.vue$/, '');
+    const id = name.toLowerCase();
+    const label = name.replace(/([A-Z])/g, ' $1').trim();
+    return { id, label, icon: mod.icon ?? '🃏' };
+  });
 </script>
 
 <style scoped>
@@ -50,7 +53,7 @@ const cardTypes = Object.entries(cardModules).map(([path, mod]) => {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1.75rem;
-  width: 360px;
+  width: 600px;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -64,7 +67,7 @@ const cardTypes = Object.entries(cardModules).map(([path, mod]) => {
 
 .card-list {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -73,13 +76,14 @@ const cardTypes = Object.entries(cardModules).map(([path, mod]) => {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  padding: 1rem;
+  padding: 0.75rem 0.5rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text-primary);
   font-family: inherit;
   transition: background 0.15s, border-color 0.15s;
+  overflow: hidden;
 }
 
 .card-type-btn:hover {
@@ -92,8 +96,13 @@ const cardTypes = Object.entries(cardModules).map(([path, mod]) => {
 }
 
 .card-type-name {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  text-align: center;
 }
 
 .modal-actions {
