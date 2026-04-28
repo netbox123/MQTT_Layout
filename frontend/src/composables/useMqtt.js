@@ -4,6 +4,14 @@ import { useNotificationStore } from '../stores/notificationStore.js';
 let socket = null;
 let reconnectTimer = null;
 
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+      window.location.reload();
+    }
+  }
+});
+
 export function useMqtt() {
   const mqttStore = useMqttStore();
   const notificationStore = useNotificationStore();

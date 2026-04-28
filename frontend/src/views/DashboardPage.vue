@@ -70,7 +70,7 @@
       v-if="editingCardIndex !== null && currentEditCard?.type !== 'grid' && currentEditCard?.type !== 'entities' && currentEditCard?.type !== 'musicassistant' && currentEditCard?.type !== 'notification' && !(currentEditCard?.type === 'url' && editingCardIndex !== 'new')"
       :card="currentEditCard"
       :isNew="editingCardIndex === 'new'"
-      :title="currentEditCard?.type === 'weather' ? (editingCardIndex === 'new' ? 'New Weather Card' : 'Edit Weather Card') : currentEditCard?.type === 'camera' ? (editingCardIndex === 'new' ? 'New Camera Card' : 'Edit Camera Card') : currentEditCard?.type === 'webpage' ? (editingCardIndex === 'new' ? 'New Webpage Card' : 'Edit Webpage Card') : currentEditCard?.type === 'pizza' ? (editingCardIndex === 'new' ? 'New Pizza Card' : 'Edit Pizza Card') : currentEditCard?.type === 'url' ? (editingCardIndex === 'new' ? 'New Url Card' : 'Edit Url Card') : ''"
+      :title="currentEditCard?.type === 'weather' ? (editingCardIndex === 'new' ? 'New Weather Card' : 'Edit Weather Card') : currentEditCard?.type === 'camera' ? (editingCardIndex === 'new' ? 'New Camera Card' : 'Edit Camera Card') : currentEditCard?.type === 'webpage' ? (editingCardIndex === 'new' ? 'New Webpage Card' : 'Edit Webpage Card') : currentEditCard?.type === 'pizza' ? (editingCardIndex === 'new' ? 'New Pizza Card' : 'Edit Pizza Card') : currentEditCard?.type === 'url' ? (editingCardIndex === 'new' ? 'New Url Card' : 'Edit Url Card') : currentEditCard?.type === 'machine' ? (editingCardIndex === 'new' ? 'New Machines Card' : 'Edit Machines') : currentEditCard?.type === 'tv' ? (editingCardIndex === 'new' ? 'New TVs Card' : 'Edit TVs') : ''"
       :hiddenFields="currentEditCard?.type === 'pizza' ? ['title', 'mqtt_topic'] : currentEditCard?.type === 'url' ? ['title', 'mqtt_topic'] : []"
       @save="handleSave"
       @cancel="editingCardIndex = null"
@@ -94,6 +94,8 @@ import WeatherCard from '../components/cards/WeatherCard.vue';
 import EntitiesCard from '../components/cards/EntitiesCard.vue';
 import MusicAssistantCard from '../components/cards/MusicAssistantCard.vue';
 import NotificationCard from '../components/cards/NotificationCard.vue';
+import MachineCard from '../components/cards/MachineCard.vue';
+import TvCard from '../components/cards/TvCard.vue';
 import RecipeCard from '../components/cards/RecipeCard.vue';
 import PizzaCard from '../components/cards/PizzaCard.vue';
 import UrlCard from '../components/cards/UrlCard.vue';
@@ -283,6 +285,8 @@ const cardDefaults = {
   entities:  { type: 'entities',  rows: 2, items: [], position: { x: 1, y: 1, w: 2, h: 2 } },
   musicassistant: { type: 'musicassistant', title: 'Music Assistant', ma_url: 'http://192.168.0.20:8095', ma_token: '', position: { x: 1, y: 1, w: 3, h: 3 } },
   notification: { type: 'notification', title: 'New Notification Card', max_items: 20, position: { x: 1, y: 1, w: 2, h: 3 } },
+  machine: { type: 'machine', title: 'Machines', mqtt_prefix: 'site_dashboard/machines', position: { x: 1, y: 1, w: 2, h: 3 } },
+  tv: { type: 'tv', title: 'TVs', mqtt_prefix: 'site_dashboard/tvs', position: { x: 1, y: 1, w: 2, h: 3 } },
   pizza: { type: 'pizza', position: { x: 1, y: 1, w: 4, h: 4 } },
   url: { type: 'url', title: 'Links', position: { x: 1, y: 1, w: 2, h: 3 } },
 };
@@ -333,6 +337,8 @@ const typeMap = {
   entities: EntitiesCard,
   musicassistant: MusicAssistantCard,
   notification: NotificationCard,
+  machine: MachineCard,
+  tv: TvCard,
   recipe: RecipeCard,
   pizza: PizzaCard,
   url: UrlCard,

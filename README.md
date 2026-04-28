@@ -97,6 +97,21 @@ These are served at `/sounds/` and used by the notification system.
 | `url` | Categorised link launcher |
 | `webpage` | Embedded iframe |
 | `recipe` | Local recipe viewer |
+| `machine` | Network machines — online status, Wake on LAN, shutdown |
+| `tv` | Network TVs — online status, Wake on LAN, power off |
+
+## Site Dashboard Integration
+
+The `machine` and `tv` card types consume retained MQTT messages published by [Site Dashboard](https://github.com/netbox123/SIte_Dashboard).
+
+Configure the card with the matching `mqtt_prefix`:
+
+| Card type | `mqtt_prefix` |
+|---|---|
+| `machine` | `site_dashboard/machines` |
+| `tv` | `site_dashboard/tvs` |
+
+The card auto-discovers all devices by scanning received topics matching `{prefix}/+/state`. Wake and Off button clicks publish to `{prefix}/{id}/command`.
 
 ## Notification Events
 

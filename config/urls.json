@@ -5,39 +5,15 @@
       "order": 1
     },
     {
-      "name": "Apple",
+      "name": "Production",
       "order": 2
     },
     {
-      "name": "Network",
+      "name": "Tools",
       "order": 3
     }
   ],
   "urls": [
-    {
-      "name": "Router",
-      "url": "http://192.168.0.1",
-      "order": 2,
-      "category": "Network"
-    },
-    {
-      "name": "Telegraaf",
-      "url": "https://www.telegraaf.nl",
-      "category": "Apple",
-      "order": 4
-    },
-    {
-      "name": "test",
-      "url": "",
-      "category": "Network",
-      "order": 3
-    },
-    {
-      "name": "testing",
-      "url": "",
-      "category": "Apple",
-      "order": 1
-    },
     {
       "name": "Facebook",
       "url": "https://www.facebook.com",
@@ -85,6 +61,36 @@
       "url": "https://discord.com/channels/@me",
       "category": "Home",
       "order": 7
+    },
+    {
+      "name": "Victron VRM",
+      "url": "https://vrm.victronenergy.com/installation-overview?isMapOpen=0",
+      "category": "Home",
+      "order": 5.5
+    },
+    {
+      "name": "Github",
+      "url": "https://github.com/netbox123",
+      "category": "Home",
+      "order": 9
+    },
+    {
+      "name": "Mr Malt",
+      "url": "https://mr-malt.se",
+      "category": "Production",
+      "order": 0
+    },
+    {
+      "name": "Lundgren skafferi",
+      "url": "https://www.lundgrensskafferi.se",
+      "category": "Production",
+      "order": 1
+    },
+    {
+      "name": "inet",
+      "url": "https://www.inet.se/datorbyggare/processor/valjfler",
+      "category": "Tools",
+      "order": 0
     }
   ]
 }

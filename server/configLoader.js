@@ -23,7 +23,7 @@ export function loadAllPageConfigs() {
     }
 
     return config;
-  });
+  }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 export function extractAllTopics(pageConfigs) {
@@ -34,6 +34,10 @@ export function extractAllTopics(pageConfigs) {
       if (card.command_topic) topics.add(card.command_topic);
       for (const item of card.items ?? []) {
         if (item.mqtt_topic) topics.add(item.mqtt_topic);
+      }
+      if ((card.type === 'machine' || card.type === 'tv') && card.mqtt_prefix) {
+        topics.add(`${card.mqtt_prefix}/+/online`);
+        topics.add(`${card.mqtt_prefix}/+/state`);
       }
     }
   }

@@ -114,12 +114,12 @@ app.patch('/api/pages/:slug', (req, res) => {
   if (!name || typeof name !== 'string' || !name.trim()) {
     return res.status(400).json({ error: 'name is required' });
   }
-  const filename = `${req.params.slug}.json`;
-  const filePath = path.join(__dirname, '../config/pages', filename);
-  if (!fs.existsSync(filePath)) {
+  const oldFilename = `${req.params.slug}.json`;
+  const oldFilePath = path.join(__dirname, '../config/pages', oldFilename);
+  if (!fs.existsSync(oldFilePath)) {
     return res.status(404).json({ error: 'Page not found' });
   }
-  const config = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  const config = JSON.parse(fs.readFileSync(oldFilePath, 'utf-8'));
   config.name = name.trim();
   config.icon = typeof icon === 'string' ? icon.trim() : '';
   if (grid_spacing !== undefined) {
@@ -137,8 +137,27 @@ app.patch('/api/pages/:slug', (req, res) => {
   if (mobile !== undefined) {
     config.mobile = Boolean(mobile);
   }
-  fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
-  console.log(`[Config] Updated page ${filename}`);
+
+  const newSlug = config.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const newFilename = `${newSlug}.json`;
+  const newFilePath = path.join(__dirname, '../config/pages', newFilename);
+  config.path = `/${newSlug}`;
+
+  if (newFilePath !== oldFilePath && fs.existsSync(newFilePath)) {
+    return res.status(409).json({ error: `A page with slug "${newSlug}" already exists` });
+  }
+
+  fs.writeFileSync(newFilePath, JSON.stringify(config, null, 2));
+  if (newFilePath !== oldFilePath) {
+    fs.unlinkSync(oldFilePath);
+    console.log(`[Config] Renamed page ${oldFilename} → ${newFilename}`);
+  } else {
+    console.log(`[Config] Updated page ${newFilename}`);
+  }
+
+  const idx = pageConfigs.findIndex(p => p.path === `/${req.params.slug}`);
+  if (idx !== -1) pageConfigs[idx] = config;
+
   res.json(config);
 });
 

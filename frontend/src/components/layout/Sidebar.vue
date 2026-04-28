@@ -4,22 +4,11 @@
       <button class="collapse-btn" @click="collapsed = !collapsed" :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
         <svg viewBox="0 0 24 24" width="16" height="16"><path :d="collapsed ? mdiChevronRight : mdiChevronLeft" fill="currentColor" /></svg>
       </button>
-      <div class="sidebar-brand">
+      <div class="sidebar-brand" @click="reloadPage" style="cursor:pointer">
         <svg class="mosquitto-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <!-- Left arcs — 3 sizes, anchored to centre (12,8) at ±45° -->
-          <path d="M 9.9,5.9 A 3,3,0,0,0,9.9,10.1"   fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
-          <path d="M 8.5,4.5 A 5,5,0,0,0,8.5,11.5"   fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
-          <path d="M 6.9,2.9 A 7.2,7.2,0,0,0,6.9,13.1" fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
-          <!-- Right arcs — mirror -->
-          <path d="M 14.1,5.9 A 3,3,0,0,1,14.1,10.1"   fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
-          <path d="M 15.5,4.5 A 5,5,0,0,1,15.5,11.5"   fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
-          <path d="M 17.1,2.9 A 7.2,7.2,0,0,1,17.1,13.1" fill="none" stroke="#3D5580" stroke-width="2.2" stroke-linecap="round"/>
-          <!-- Orange needle -->
-          <line x1="12" y1="9.8" x2="12" y2="23" stroke="#E87C00" stroke-width="1.8" stroke-linecap="round"/>
-          <!-- Orange dot -->
-          <circle cx="12" cy="8" r="2.1" fill="#E87C00"/>
+          <path :d="mdiHomeAssistant" fill="#18BCF2" />
         </svg>
-        <span class="sidebar-title">MQTT</span>
+        <span class="sidebar-title">Home Assistant</span>
       </div>
     </div>
     <ul class="nav-list">
@@ -198,12 +187,14 @@
 
 <script setup>
 import { computed, ref, nextTick, inject } from 'vue';
-import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
+import { mdiChevronLeft, mdiChevronRight, mdiHomeAssistant } from '@mdi/js';
 import { useMqttStore } from '../../stores/mqttStore.js';
 import PageIconPicker from '../dialogs/PageIconPicker.vue';
 import { ICON_MAP, ICON_VIEWBOXES } from '../../utils/pageIcons.js';
 
 const collapsed = ref(false);
+
+function reloadPage() { window.location.reload(); }
 
 const addPage = inject('addPage');
 const removePage = inject('remove_page');
@@ -277,19 +268,24 @@ async function submitRename() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: editName.value.trim(), icon: editIcon.value.trim(), grid_spacing: editSpacing.value, card_height: editCardHeight.value, card_width: editCardWidth.value, order: editOrder.value, mobile: editMobile.value }),
     });
+    const data = await res.json();
     if (!res.ok) {
-      const data = await res.json();
       editError.value = data.error ?? 'Failed to update page';
       return;
     }
-    editingPage.value.name = editName.value.trim();
-    editingPage.value.icon = editIcon.value.trim();
-    editingPage.value.grid_spacing = editSpacing.value;
-    editingPage.value.card_height = editCardHeight.value;
-    editingPage.value.card_width = editCardWidth.value;
-    editingPage.value.order = editOrder.value;
-    editingPage.value.mobile = editMobile.value;
+    const oldPath = editingPage.value.path;
+    editingPage.value.name = data.name;
+    editingPage.value.path = data.path;
+    editingPage.value.icon = data.icon ?? '';
+    editingPage.value.grid_spacing = data.grid_spacing;
+    editingPage.value.card_height = data.card_height;
+    editingPage.value.card_width = data.card_width;
+    editingPage.value.order = data.order;
+    editingPage.value.mobile = data.mobile;
     cancelEditing();
+    if (data.path !== oldPath) {
+      window.location.href = data.path;
+    }
   } catch {
     editError.value = 'Network error';
   }

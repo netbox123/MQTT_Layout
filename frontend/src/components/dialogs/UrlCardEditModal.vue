@@ -4,6 +4,16 @@
       <div class="modal">
         <h2 class="modal-title">Edit Url Card</h2>
 
+        <div class="mobile-row">
+          <label class="field-label">Mobile</label>
+          <label class="field-checkbox">
+            <input type="checkbox" v-model="localMobileShow" />
+            <span>{{ localMobileShow ? 'Yes' : 'No' }}</span>
+          </label>
+          <label class="field-label">Order</label>
+          <input class="field-input field-input--short" type="number" min="0" v-model.number="localMobileOrder" />
+        </div>
+
         <div class="item-list">
           <button
             v-for="(cat, i) in localCategories"
@@ -65,6 +75,8 @@ const selectedIdx = ref(null);
 const editName = ref('');
 const editOrder = ref(0);
 const saveError = ref('');
+const localMobileShow = ref(props.card.mobile_show !== false);
+const localMobileOrder = ref(props.card.mobile_order ?? 0);
 
 fetch('/api/urls')
   .then(r => r.json())
@@ -129,7 +141,7 @@ async function save() {
     return;
   }
   window.dispatchEvent(new CustomEvent('urls-updated'));
-  emit('save', { ...props.card });
+  emit('save', { ...props.card, mobile_show: localMobileShow.value, mobile_order: localMobileOrder.value });
 }
 </script>
 
@@ -204,6 +216,25 @@ async function save() {
   border-radius: 3px;
   padding: 0.1rem 0.4rem;
   flex-shrink: 0;
+}
+
+.mobile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.field-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.field-input--short {
+  width: 8ch !important;
 }
 
 .fields {
