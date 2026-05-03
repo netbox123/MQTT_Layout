@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import DashboardPage from '../views/DashboardPage.vue';
 import MobilePage from '../views/MobilePage.vue';
+import RemotePage from '../views/RemotePage.vue';
+import WledPage from '../views/WledPage.vue';
 import NotFound from '../views/NotFound.vue';
 
 export function createPageRoute(config) {
@@ -26,6 +28,8 @@ export async function createAppRouter() {
     routes.push({ path: '/', redirect: pageConfigs[0].path });
   }
 
+  routes.push({ path: '/remote', component: RemotePage });
+  routes.push({ path: '/wled', component: WledPage });
   routes.push({ path: '/m/:slug', component: MobilePage });
 
   const firstMobile = pageConfigs

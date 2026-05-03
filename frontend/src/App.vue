@@ -16,7 +16,7 @@ import NotificationOverlay from './components/NotificationOverlay.vue';
 
 const pageConfigs = inject('pageConfigs', []);
 const route = useRoute();
-const isMobile = computed(() => route.path.startsWith('/m/'));
+const isMobile = computed(() => route.path.startsWith('/m/') || route.path === '/remote');
 </script>
 
 <style scoped>

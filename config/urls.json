@@ -11,6 +11,10 @@
     {
       "name": "Tools",
       "order": 3
+    },
+    {
+      "name": "Apple",
+      "order": 3
     }
   ],
   "urls": [
@@ -90,6 +94,18 @@
       "name": "inet",
       "url": "https://www.inet.se/datorbyggare/processor/valjfler",
       "category": "Tools",
+      "order": 0
+    },
+    {
+      "name": "Macrumors",
+      "url": "https://www.macrumors.com",
+      "category": "Apple",
+      "order": 1
+    },
+    {
+      "name": "Apple ",
+      "url": "https://www.apple.com/nl/",
+      "category": "Apple",
       "order": 0
     }
   ]

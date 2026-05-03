@@ -1,0 +1,50 @@
+{
+  "categories": [
+    {
+      "name": "Whites",
+      "order": 0
+    },
+    {
+      "name": "Colors",
+      "order": 1
+    }
+  ],
+  "presets": [
+    {
+      "name": "White 50%",
+      "category": "Whites",
+      "order": 0,
+      "r": 255,
+      "g": 255,
+      "b": 255,
+      "w": 126
+    },
+    {
+      "name": "white 100%",
+      "category": "Whites",
+      "order": 1,
+      "r": 255,
+      "g": 255,
+      "b": 255,
+      "w": 255
+    },
+    {
+      "name": "Red",
+      "category": "Colors",
+      "order": 2,
+      "r": 255,
+      "g": 0,
+      "b": 0,
+      "w": 0
+    },
+    {
+      "name": "green",
+      "category": "Colors",
+      "order": 0,
+      "r": 0,
+      "g": 255,
+      "b": 0,
+      "w": 0
+    }
+  ]
+}

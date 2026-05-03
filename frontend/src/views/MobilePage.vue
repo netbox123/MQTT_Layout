@@ -8,6 +8,11 @@
         :class="{ 'mobile-nav-link--active': p.path === activePath }"
         @click="setActive(p)"
       >{{ p.name }}</button>
+      <button
+        v-if="remoteMobileEnabled"
+        class="mobile-nav-link"
+        @click="router.push('/remote')"
+      >Remote</button>
     </nav>
     <div v-if="error" class="mobile-error">{{ error }}</div>
     <div v-else class="mobile-cards">
@@ -35,7 +40,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import SensorCard from '../components/cards/SensorCard.vue';
 import GaugeCard from '../components/cards/GaugeCard.vue';
 import SwitchCard from '../components/cards/SwitchCard.vue';
@@ -54,7 +59,9 @@ import UrlCard from '../components/cards/UrlCard.vue';
 import NotificationCard from '../components/cards/NotificationCard.vue';
 
 const route = useRoute();
+const router = useRouter();
 const allPages = ref([]);
+const remoteMobileEnabled = ref(localStorage.getItem('remote_mobile_enabled') === 'true');
 const activePath = ref('/' + route.params.slug);
 const error = ref('');
 

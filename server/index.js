@@ -276,6 +276,40 @@ app.get('/api/camera/stream', handleCameraStream);
 app.get('/api/camera/snapshot', handleCameraSnapshot);
 app.use('/api/recipes', recipeRoutes);
 
+// WLED devices JSON — read/write
+const wledDevicesPath = path.join(__dirname, '../config/wled_devices.json');
+function loadWledDevices() {
+  try { return JSON.parse(fs.readFileSync(wledDevicesPath, 'utf-8')); } catch { return []; }
+}
+app.get('/api/wled-devices', (req, res) => res.json(loadWledDevices()));
+app.patch('/api/wled-devices', (req, res) => {
+  try {
+    fs.writeFileSync(wledDevicesPath, JSON.stringify(req.body, null, 2));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Colors JSON — read/write
+const colorsPath = path.join(__dirname, '../config/colors.json');
+app.get('/api/colors', (req, res) => {
+  try {
+    const data = JSON.parse(fs.readFileSync(colorsPath, 'utf-8'));
+    res.json(data);
+  } catch {
+    res.json({ categories: [], presets: [] });
+  }
+});
+app.patch('/api/colors', (req, res) => {
+  try {
+    fs.writeFileSync(colorsPath, JSON.stringify(req.body, null, 2));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // URLs JSON — read/write
 const urlsPath = path.join(__dirname, '../config/urls.json');
 app.get('/api/urls', (req, res) => {
@@ -548,10 +582,11 @@ function checkEventTriggers(topic, value) {
 // Create MQTT client and wire it to the WebSocket server
 const mqttClient = createMqttClient(pageConfigs, wsServer, checkEventTriggers);
 
-// Subscribe to all event topics after client is created
+// Subscribe to all event topics and WLED topics after client is created
 setTimeout(() => {
   const eventTopics = [...new Set(notifEvents.map(e => e.mqtt_topic).filter(Boolean))];
   if (eventTopics.length) mqttClient.subscribeTopics(eventTopics);
+  if (loadWledDevices().length) mqttClient.subscribeTopics(['wled/#']);
 }, 2000);
 
 const PORT = process.env.SERVER_PORT || 3000;

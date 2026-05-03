@@ -1,7 +1,7 @@
 <template>
   <div class="card machine-card">
     <div class="card-header">
-      <span class="header-icon">🖥️</span>
+      <svg viewBox="0 0 24 24" fill="currentColor" class="header-icon"><path :d="mdiDesktopClassic" /></svg>
       {{ card.title || 'Machines' }}
     </div>
     <div v-if="!devices.length" class="empty-msg">No data yet</div>
@@ -10,8 +10,8 @@
         <span class="dot" :class="d.online ? 'dot--on' : 'dot--off'"></span>
         <span class="device-name">{{ d.name }}</span>
         <span class="device-meta">{{ d.ip }}</span>
-        <button class="action-btn action-btn--wake" title="Wake on LAN" @click.stop="wake(d.id)">Wake</button>
-        <button class="action-btn action-btn--off" title="Shutdown" @click.stop="shutdown(d.id)">Off</button>
+        <button class="action-btn action-btn--wake" title="Wake on LAN" :disabled="d.online" @click.stop="wake(d.id)">Wake</button>
+        <button class="action-btn action-btn--off" title="Shutdown" :disabled="!d.online" @click.stop="shutdown(d.id)">Off</button>
       </div>
     </div>
   </div>
@@ -23,6 +23,7 @@ export const icon = '🖥️';
 
 <script setup>
 import { computed } from 'vue';
+import { mdiDesktopClassic } from '@mdi/js';
 import { useMqttStore } from '../../stores/mqttStore.js';
 import { useMqtt } from '../../composables/useMqtt.js';
 
@@ -52,7 +53,9 @@ const devices = computed(() => {
       online: onlineRaw === 'ON' || onlineRaw === true,
     });
   }
-  return result.sort((a, b) => a.name.localeCompare(b.name));
+  result.sort((a, b) => a.name.localeCompare(b.name));
+  const ids = props.card.included_ids;
+  return ids?.length ? result.filter(d => ids.includes(d.id)) : result;
 });
 
 function wake(id) { publish(`${prefix.value}/${id}/command`, 'wake'); }
@@ -85,8 +88,9 @@ function shutdown(id) { publish(`${prefix.value}/${id}/command`, 'shutdown'); }
 }
 
 .header-icon {
-  font-size: 0.85rem;
-  line-height: 1;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
 }
 
 .empty-msg {
@@ -149,13 +153,14 @@ function shutdown(id) { publish(`${prefix.value}/${id}/command`, 'shutdown'); }
   border-radius: 4px;
   border: 1px solid var(--border);
   background: transparent;
-  color: var(--text-secondary);
+  color: #e8eaf0;
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   line-height: 1.4;
 }
 
-.action-btn--wake:hover  { border-color: #4caf6e; color: #4caf6e; }
-.action-btn--off:hover   { border-color: #e05454; color: #e05454; }
+.action-btn--wake:not(:disabled):hover  { border-color: #4caf6e; color: #4caf6e; }
+.action-btn--off:not(:disabled):hover   { border-color: #e05454; color: #e05454; }
+.action-btn:disabled { color: var(--text-secondary); cursor: default; }
 </style>

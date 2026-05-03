@@ -21,6 +21,20 @@
         </router-link>
         <button v-if="editing && !collapsed" class="page-edit-btn" title="Edit page" @click="startEditing(page)">✎</button>
       </li>
+      <li class="nav-separator"></li>
+      <li class="nav-item">
+        <router-link to="/remote" class="nav-link" active-class="nav-link--active" :title="collapsed ? 'Remote' : undefined">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" width="16" height="16"><path :d="mdiRemoteTv" fill="currentColor" /></svg>
+          <span class="nav-link-text">Remote</span>
+        </router-link>
+        <button v-if="editing && !collapsed" class="page-edit-btn" title="Edit Remote page" @click="openRemoteEdit">✎</button>
+      </li>
+      <li class="nav-item">
+        <router-link to="/wled" class="nav-link" active-class="nav-link--active" :title="collapsed ? 'WLED' : undefined">
+          <svg class="nav-icon-svg" viewBox="0 0 24 24" width="16" height="16"><path :d="mdiLedStripVariant" fill="currentColor" /></svg>
+          <span class="nav-link-text">WLED</span>
+        </router-link>
+      </li>
     </ul>
     <div class="sidebar-footer">
       <span class="status-dot" :class="`status-dot--${status}`"></span>
@@ -169,6 +183,25 @@
           </form>
         </div>
       </div>
+      <div v-if="remoteEditOpen" class="modal-backdrop" @click.self="remoteEditOpen = false">
+        <div class="modal">
+          <h2 class="modal-title">Remote Page</h2>
+          <div class="modal-fields">
+            <label class="modal-label">Mobile</label>
+            <label class="modal-checkbox">
+              <input type="checkbox" v-model="remoteMobileEnabled" />
+              <span>{{ remoteMobileEnabled ? 'Yes' : 'No' }}</span>
+            </label>
+          </div>
+          <div class="modal-actions">
+            <span></span>
+            <div class="modal-actions-right">
+              <button type="button" class="modal-cancel" @click="remoteEditOpen = false">Cancel</button>
+              <button type="button" class="modal-confirm" @click="saveRemoteEdit">OK</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <PageIconPicker
         v-if="iconPickerOpen"
         :model-value="editIcon"
@@ -187,7 +220,7 @@
 
 <script setup>
 import { computed, ref, nextTick, inject } from 'vue';
-import { mdiChevronLeft, mdiChevronRight, mdiHomeAssistant } from '@mdi/js';
+import { mdiChevronLeft, mdiChevronRight, mdiHomeAssistant, mdiRemoteTv, mdiLedStripVariant } from '@mdi/js';
 import { useMqttStore } from '../../stores/mqttStore.js';
 import PageIconPicker from '../dialogs/PageIconPicker.vue';
 import { ICON_MAP, ICON_VIEWBOXES } from '../../utils/pageIcons.js';
@@ -365,6 +398,20 @@ async function submitMqttSettings() {
   }
 }
 
+// ── Remote page settings ──────────────────────────────────────────────────────
+const remoteEditOpen = ref(false);
+const remoteMobileEnabled = ref(localStorage.getItem('remote_mobile_enabled') === 'true');
+
+function openRemoteEdit() {
+  remoteMobileEnabled.value = localStorage.getItem('remote_mobile_enabled') === 'true';
+  remoteEditOpen.value = true;
+}
+
+function saveRemoteEdit() {
+  localStorage.setItem('remote_mobile_enabled', remoteMobileEnabled.value ? 'true' : 'false');
+  remoteEditOpen.value = false;
+}
+
 async function submitPage() {
   addError.value = '';
   try {
@@ -490,6 +537,16 @@ async function submitPage() {
 
 .sidebar--collapsed .nav-icon-svg {
   margin-right: 0;
+}
+
+.nav-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 0.4rem 1rem;
+}
+
+.sidebar--collapsed .nav-separator {
+  margin: 0.4rem 0.6rem;
 }
 
 .nav-icon-fallback {

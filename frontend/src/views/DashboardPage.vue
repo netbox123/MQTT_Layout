@@ -16,6 +16,7 @@
       >
         <component :is="cardComponent(card.type)" :card="card" :ref="el => { if (el) cardCompRefs[i] = el }" />
         <button v-if="editing && card.type === 'url'" class="card-url-add-btn" title="Add link" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
+        <button v-if="editing && card.type === 'color'" class="card-url-add-btn" title="Add preset" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing" class="card-edit-btn" title="Edit card" @click.stop="openEdit(i)">✎</button>
         <div v-if="editing" class="resize-handle" @mousedown.stop="startResize($event, i)" />
       </div>
@@ -58,6 +59,14 @@
       @cancel="editingCardIndex = null"
       @delete="deleteCard"
     />
+    <ColorCardEditModal
+      v-if="editingCardIndex !== null && editingCardIndex !== 'new' && currentEditCard?.type === 'color'"
+      :card="currentEditCard"
+      :isNew="editingCardIndex === 'new'"
+      @save="handleSave"
+      @cancel="editingCardIndex = null"
+      @delete="deleteCard"
+    />
     <UrlCardEditModal
       v-if="editingCardIndex !== null && editingCardIndex !== 'new' && currentEditCard?.type === 'url'"
       :card="currentEditCard"
@@ -66,12 +75,28 @@
       @cancel="editingCardIndex = null"
       @delete="deleteCard"
     />
+    <WledCardEditModal
+      v-if="editingCardIndex !== null && currentEditCard?.type === 'wled'"
+      :card="currentEditCard"
+      :isNew="editingCardIndex === 'new'"
+      @save="handleSave"
+      @cancel="editingCardIndex = null"
+      @delete="deleteCard"
+    />
+    <DeviceCardEditModal
+      v-if="editingCardIndex !== null && (currentEditCard?.type === 'machine' || currentEditCard?.type === 'tv')"
+      :card="currentEditCard"
+      :isNew="editingCardIndex === 'new'"
+      @save="handleSave"
+      @cancel="editingCardIndex = null"
+      @delete="deleteCard"
+    />
     <CardEditModal
-      v-if="editingCardIndex !== null && currentEditCard?.type !== 'grid' && currentEditCard?.type !== 'entities' && currentEditCard?.type !== 'musicassistant' && currentEditCard?.type !== 'notification' && !(currentEditCard?.type === 'url' && editingCardIndex !== 'new')"
+      v-if="editingCardIndex !== null && currentEditCard?.type !== 'grid' && currentEditCard?.type !== 'entities' && currentEditCard?.type !== 'musicassistant' && currentEditCard?.type !== 'notification' && currentEditCard?.type !== 'machine' && currentEditCard?.type !== 'tv' && currentEditCard?.type !== 'wled' && !(currentEditCard?.type === 'url' && editingCardIndex !== 'new') && !(currentEditCard?.type === 'color' && editingCardIndex !== 'new')"
       :card="currentEditCard"
       :isNew="editingCardIndex === 'new'"
       :title="currentEditCard?.type === 'weather' ? (editingCardIndex === 'new' ? 'New Weather Card' : 'Edit Weather Card') : currentEditCard?.type === 'camera' ? (editingCardIndex === 'new' ? 'New Camera Card' : 'Edit Camera Card') : currentEditCard?.type === 'webpage' ? (editingCardIndex === 'new' ? 'New Webpage Card' : 'Edit Webpage Card') : currentEditCard?.type === 'pizza' ? (editingCardIndex === 'new' ? 'New Pizza Card' : 'Edit Pizza Card') : currentEditCard?.type === 'url' ? (editingCardIndex === 'new' ? 'New Url Card' : 'Edit Url Card') : currentEditCard?.type === 'machine' ? (editingCardIndex === 'new' ? 'New Machines Card' : 'Edit Machines') : currentEditCard?.type === 'tv' ? (editingCardIndex === 'new' ? 'New TVs Card' : 'Edit TVs') : ''"
-      :hiddenFields="currentEditCard?.type === 'pizza' ? ['title', 'mqtt_topic'] : currentEditCard?.type === 'url' ? ['title', 'mqtt_topic'] : []"
+      :hiddenFields="currentEditCard?.type === 'pizza' ? ['title', 'mqtt_topic'] : currentEditCard?.type === 'url' ? ['title', 'mqtt_topic'] : currentEditCard?.type === 'color' ? ['title', 'mqtt_topic'] : []"
       @save="handleSave"
       @cancel="editingCardIndex = null"
       @delete="deleteCard"
@@ -99,12 +124,17 @@ import TvCard from '../components/cards/TvCard.vue';
 import RecipeCard from '../components/cards/RecipeCard.vue';
 import PizzaCard from '../components/cards/PizzaCard.vue';
 import UrlCard from '../components/cards/UrlCard.vue';
+import ColorCard from '../components/cards/ColorCard.vue';
+import WledCard from '../components/cards/WledCard.vue';
 import CardEditModal from '../components/dialogs/CardEditModal.vue';
 import GridCardEditModal from '../components/dialogs/GridCardEditModal.vue';
 import EntitiesCardEditModal from '../components/dialogs/EntitiesCardEditModal.vue';
 import UrlCardEditModal from '../components/dialogs/UrlCardEditModal.vue';
+import ColorCardEditModal from '../components/dialogs/ColorCardEditModal.vue';
+import WledCardEditModal from '../components/dialogs/WledCardEditModal.vue';
 import MusicAssistantCardEditModal from '../components/dialogs/MusicAssistantCardEditModal.vue';
 import NotificationCardEditModal from '../components/dialogs/NotificationCardEditModal.vue';
+import DeviceCardEditModal from '../components/dialogs/DeviceCardEditModal.vue';
 import CardPickerModal from '../components/dialogs/CardPickerModal.vue';
 
 const props = defineProps({
@@ -289,6 +319,8 @@ const cardDefaults = {
   tv: { type: 'tv', title: 'TVs', mqtt_prefix: 'site_dashboard/tvs', position: { x: 1, y: 1, w: 2, h: 3 } },
   pizza: { type: 'pizza', position: { x: 1, y: 1, w: 4, h: 4 } },
   url: { type: 'url', title: 'Links', position: { x: 1, y: 1, w: 2, h: 3 } },
+  color: { type: 'color', position: { x: 1, y: 1, w: 2, h: 3 } },
+  wled: { type: 'wled', title: 'WLED', devices: [], position: { x: 1, y: 1, w: 2, h: 3 } },
 };
 
 function findEmptyPosition(w, h) {
@@ -342,6 +374,8 @@ const typeMap = {
   recipe: RecipeCard,
   pizza: PizzaCard,
   url: UrlCard,
+  color: ColorCard,
+  wled: WledCard,
 };
 
 function cardComponent(type) {
