@@ -57,6 +57,11 @@ import RecipeCard from '../components/cards/RecipeCard.vue';
 import PizzaCard from '../components/cards/PizzaCard.vue';
 import UrlCard from '../components/cards/UrlCard.vue';
 import NotificationCard from '../components/cards/NotificationCard.vue';
+import MachineCard from '../components/cards/MachineCard.vue';
+import TvCard from '../components/cards/TvCard.vue';
+import ColorCard from '../components/cards/ColorCard.vue';
+import WiimCard from '../components/cards/WiimCard.vue';
+import WledCard from '../components/cards/WledCard.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -71,6 +76,7 @@ const typeMap = {
   webpage: WebpageCard, grid: GridCard, indicator: IndicatorCard,
   weather: WeatherCard, entities: EntitiesCard,
   musicassistant: MusicAssistantCard, recipe: RecipeCard, pizza: PizzaCard, url: UrlCard, notification: NotificationCard,
+  machine: MachineCard, tv: TvCard, color: ColorCard, wled: WledCard, wiim: WiimCard,
 };
 
 function cardComponent(type) {

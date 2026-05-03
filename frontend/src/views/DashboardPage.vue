@@ -83,6 +83,14 @@
       @cancel="editingCardIndex = null"
       @delete="deleteCard"
     />
+    <WiimCardEditModal
+      v-if="editingCardIndex !== null && currentEditCard?.type === 'wiim'"
+      :card="currentEditCard"
+      :isNew="editingCardIndex === 'new'"
+      @save="handleSave"
+      @cancel="editingCardIndex = null"
+      @delete="deleteCard"
+    />
     <DeviceCardEditModal
       v-if="editingCardIndex !== null && (currentEditCard?.type === 'machine' || currentEditCard?.type === 'tv')"
       :card="currentEditCard"
@@ -92,7 +100,7 @@
       @delete="deleteCard"
     />
     <CardEditModal
-      v-if="editingCardIndex !== null && currentEditCard?.type !== 'grid' && currentEditCard?.type !== 'entities' && currentEditCard?.type !== 'musicassistant' && currentEditCard?.type !== 'notification' && currentEditCard?.type !== 'machine' && currentEditCard?.type !== 'tv' && currentEditCard?.type !== 'wled' && !(currentEditCard?.type === 'url' && editingCardIndex !== 'new') && !(currentEditCard?.type === 'color' && editingCardIndex !== 'new')"
+      v-if="editingCardIndex !== null && currentEditCard?.type !== 'grid' && currentEditCard?.type !== 'entities' && currentEditCard?.type !== 'musicassistant' && currentEditCard?.type !== 'notification' && currentEditCard?.type !== 'machine' && currentEditCard?.type !== 'tv' && currentEditCard?.type !== 'wled' && currentEditCard?.type !== 'wiim' && !(currentEditCard?.type === 'url' && editingCardIndex !== 'new') && !(currentEditCard?.type === 'color' && editingCardIndex !== 'new')"
       :card="currentEditCard"
       :isNew="editingCardIndex === 'new'"
       :title="currentEditCard?.type === 'weather' ? (editingCardIndex === 'new' ? 'New Weather Card' : 'Edit Weather Card') : currentEditCard?.type === 'camera' ? (editingCardIndex === 'new' ? 'New Camera Card' : 'Edit Camera Card') : currentEditCard?.type === 'webpage' ? (editingCardIndex === 'new' ? 'New Webpage Card' : 'Edit Webpage Card') : currentEditCard?.type === 'pizza' ? (editingCardIndex === 'new' ? 'New Pizza Card' : 'Edit Pizza Card') : currentEditCard?.type === 'url' ? (editingCardIndex === 'new' ? 'New Url Card' : 'Edit Url Card') : currentEditCard?.type === 'machine' ? (editingCardIndex === 'new' ? 'New Machines Card' : 'Edit Machines') : currentEditCard?.type === 'tv' ? (editingCardIndex === 'new' ? 'New TVs Card' : 'Edit TVs') : ''"
@@ -126,12 +134,14 @@ import PizzaCard from '../components/cards/PizzaCard.vue';
 import UrlCard from '../components/cards/UrlCard.vue';
 import ColorCard from '../components/cards/ColorCard.vue';
 import WledCard from '../components/cards/WledCard.vue';
+import WiimCard from '../components/cards/WiimCard.vue';
 import CardEditModal from '../components/dialogs/CardEditModal.vue';
 import GridCardEditModal from '../components/dialogs/GridCardEditModal.vue';
 import EntitiesCardEditModal from '../components/dialogs/EntitiesCardEditModal.vue';
 import UrlCardEditModal from '../components/dialogs/UrlCardEditModal.vue';
 import ColorCardEditModal from '../components/dialogs/ColorCardEditModal.vue';
 import WledCardEditModal from '../components/dialogs/WledCardEditModal.vue';
+import WiimCardEditModal from '../components/dialogs/WiimCardEditModal.vue';
 import MusicAssistantCardEditModal from '../components/dialogs/MusicAssistantCardEditModal.vue';
 import NotificationCardEditModal from '../components/dialogs/NotificationCardEditModal.vue';
 import DeviceCardEditModal from '../components/dialogs/DeviceCardEditModal.vue';
@@ -321,6 +331,7 @@ const cardDefaults = {
   url: { type: 'url', title: 'Links', position: { x: 1, y: 1, w: 2, h: 3 } },
   color: { type: 'color', position: { x: 1, y: 1, w: 2, h: 3 } },
   wled: { type: 'wled', title: 'WLED', devices: [], position: { x: 1, y: 1, w: 2, h: 3 } },
+  wiim: { type: 'wiim', title: 'WiiM Pro', ip: '192.168.0.22', position: { x: 1, y: 1, w: 3, h: 2 } },
 };
 
 function findEmptyPosition(w, h) {
@@ -376,6 +387,7 @@ const typeMap = {
   url: UrlCard,
   color: ColorCard,
   wled: WledCard,
+  wiim: WiimCard,
 };
 
 function cardComponent(type) {

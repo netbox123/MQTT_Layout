@@ -102,6 +102,7 @@ These are served at `/sounds/` and used by the notification system.
 | `tv` | Network TVs — online status, Wake on LAN, power off |
 | `color` | RGBW color preset manager with categories (used by WLED card) |
 | `wled` | WLED LED strip control — per-device lightbulb toggle with color preset |
+| `wiim` | WiiM / LinkPlay streamer — volume slider and input selector |
 
 ## Site Dashboard Integration
 
@@ -160,6 +161,19 @@ Color changes publish a JSON payload to `wled/{id}/api`:
 ```json
 { "on": true, "bri": 255, "seg": [{ "col": [[R, G, B, W]] }] }
 ```
+
+## WiiM Integration
+
+The `wiim` card controls any WiiM or LinkPlay-based streamer over its local HTTPS API. Configure the card with the device IP address.
+
+| Card field | Description |
+|---|---|
+| `title` | Display name |
+| `ip` | Device IP address (e.g. `192.168.0.22`) |
+
+The card polls the device every 3 seconds for live volume and input state. Volume changes are debounced and sent immediately on release. Supported inputs: WiFi, Bluetooth, Line In, Optical, Coaxial.
+
+The server proxies all requests to `https://{ip}/httpapi.asp` (bypassing the self-signed certificate) to avoid CORS issues in the browser.
 
 ## License
 

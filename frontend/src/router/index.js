@@ -29,6 +29,7 @@ export async function createAppRouter() {
   }
 
   routes.push({ path: '/remote', component: RemotePage });
+  routes.push({ path: '/m/remote', component: RemotePage });
   routes.push({ path: '/wled', component: WledPage });
   routes.push({ path: '/m/:slug', component: MobilePage });
 

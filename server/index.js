@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import https from 'https';
 import { createServer } from 'http';
 import fs from 'fs';
 import path from 'path';
@@ -327,6 +328,26 @@ app.patch('/api/urls', (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// WiiM / LinkPlay proxy — avoids CORS; uses HTTPS with self-signed cert
+const wiimAgent = new https.Agent({ rejectUnauthorized: false });
+app.get('/api/wiim/proxy', (req, res) => {
+  const { ip, cmd } = req.query;
+  if (!ip || !cmd) return res.status(400).json({ error: 'Missing ip or cmd' });
+  const request = https.request(
+    `https://${ip}/httpapi.asp?command=${cmd}`,
+    { agent: wiimAgent },
+    (upstream) => {
+      let body = '';
+      upstream.on('data', chunk => { body += chunk; });
+      upstream.on('end', () => {
+        try { res.json(JSON.parse(body)); } catch { res.send(body); }
+      });
+    }
+  );
+  request.on('error', e => res.status(503).json({ error: e.message }));
+  request.end();
 });
 
 // Home Assistant service proxy — keeps the HA token off the browser

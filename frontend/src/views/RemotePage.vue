@@ -157,10 +157,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  min-height: 100dvh;
   background: #000;
   margin: -0.75rem;
-  padding: 2rem 1rem;
+  padding: env(safe-area-inset-top, 1rem) 1rem env(safe-area-inset-bottom, 1rem);
   box-sizing: border-box;
 }
 

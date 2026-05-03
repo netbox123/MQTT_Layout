@@ -18,7 +18,7 @@
 
   <!-- Philips Remote modal -->
   <Teleport to="body">
-    <div v-if="remoteFor" class="remote-overlay" @click.self="remoteFor = null">
+    <div v-if="remoteFor" class="remote-overlay" :class="{ 'remote-overlay--mobile': mobile }" @click.self="remoteFor = null">
       <div class="remote-wrap">
 
         <div class="remote-label">
@@ -107,7 +107,8 @@ import { useMqttStore } from '../../stores/mqttStore.js';
 import { useMqtt } from '../../composables/useMqtt.js';
 
 const props = defineProps({
-  card: { type: Object, required: true },
+  card:   { type: Object,  required: true },
+  mobile: { type: Boolean, default: false },
 });
 
 const mqttStore = useMqttStore();
@@ -429,4 +430,56 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown));
 .rkey--green:hover  { background: #1e781e; }
 .rkey--yellow:hover { background: #887818; }
 .rkey--blue:hover   { background: #201898; }
+
+/* ── Mobile fullscreen overlay ── */
+.remote-overlay--mobile .remote-close {
+  font-size: 1.1rem;
+  padding: 0.5rem 1.4rem;
+  border-radius: 8px;
+  border-color: #555;
+  color: #ccc;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.remote-overlay--mobile .remote-close:hover { background: #2a2a2a; color: #fff; border-color: #888; }
+
+.remote-overlay--mobile {
+  align-items: center;
+  justify-content: center;
+  padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+}
+.remote-overlay--mobile .remote-wrap {
+  max-height: 100dvh;
+  padding: 0.75rem 1rem 1rem;
+}
+.remote-overlay--mobile .remote-shell {
+  width: 270px;
+  padding: 20px 20px 28px;
+  gap: 11px;
+  zoom: 1.3;
+}
+.remote-overlay--mobile .rkey {
+  height: 43px;
+  width: 55px;
+  font-size: 1rem;
+  border-radius: 10px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.remote-overlay--mobile .rkey--power { width: 55px; height: 55px; font-size: 1.4rem; }
+.remote-overlay--mobile .r-row3 { gap: 8px; }
+.remote-overlay--mobile .r-dpad { grid-template-columns: repeat(3, 55px); gap: 5px; }
+.remote-overlay--mobile .r-dpad span { height: 43px; }
+.remote-overlay--mobile .r-arrow { height: 43px; font-size: 0.81rem; }
+.remote-overlay--mobile .r-ok { width: 55px; height: 55px; font-size: 0.9rem; }
+.remote-overlay--mobile .r-dpad-group .r-dpad { margin-top: -21px; }
+.remote-overlay--mobile .r-block--overlap { margin-top: -33px; }
+.remote-overlay--mobile .r-brand { font-size: 0.73rem; }
+.remote-overlay--mobile .rkey--fn { font-size: 0.73rem; }
+.remote-overlay--mobile .rkey--home { font-size: 2rem; }
+.remote-overlay--mobile .home-icon { transform: translateY(-4px); }
+.remote-overlay--mobile .rkey--red,
+.remote-overlay--mobile .rkey--green,
+.remote-overlay--mobile .rkey--yellow,
+.remote-overlay--mobile .rkey--blue { width: 43px; height: 20px; border-radius: 10px; }
 </style>
