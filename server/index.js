@@ -292,6 +292,49 @@ app.patch('/api/wled-devices', (req, res) => {
   }
 });
 
+// Scenes JSON — read/write
+const scenesPath = path.join(__dirname, '../config/scenes.json');
+function loadScenes() {
+  try { return JSON.parse(fs.readFileSync(scenesPath, 'utf-8')); } catch { return []; }
+}
+app.get('/api/scenes', (req, res) => res.json(loadScenes()));
+app.patch('/api/scenes', (req, res) => {
+  try {
+    fs.writeFileSync(scenesPath, JSON.stringify(req.body, null, 2));
+    const topics = sceneTriggerTopics();
+    if (topics.length) mqttClient?.subscribeTopics(topics);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// HA entities — scan all pages for switch cards
+function collectSwitchCards(cards, pageName, out, seen) {
+  for (const card of (cards ?? [])) {
+    if (card.type === 'switch' && card.mqtt_topic) {
+      if (!seen.has(card.mqtt_topic)) {
+        seen.add(card.mqtt_topic);
+        out.push({
+          name: card.title ?? card.ha_entity_id ?? card.mqtt_topic,
+          page: pageName,
+          command_topic: card.command_topic ?? card.mqtt_topic.replace(/\/state$/, '/set'),
+          ha_entity_id: card.ha_entity_id ?? null,
+        });
+      }
+    }
+    // recurse into grid / entities items
+    if (card.items?.length) collectSwitchCards(card.items, pageName, out, seen);
+  }
+}
+app.get('/api/ha-entities', (req, res) => {
+  const configs = loadAllPageConfigs();
+  const out = [];
+  const seen = new Set();
+  for (const page of configs) collectSwitchCards(page.cards, page.name, out, seen);
+  res.json(out);
+});
+
 // Colors JSON — read/write
 const colorsPath = path.join(__dirname, '../config/colors.json');
 app.get('/api/colors', (req, res) => {
@@ -547,6 +590,29 @@ function checkEventTriggers(topic, value) {
   const prevNum = parseFloat(prev);
   const now     = Date.now();
 
+  // Scene MQTT triggers — same edge detection as notification events
+  for (const scene of loadScenes()) {
+    if (scene.trigger !== 'mqtt' || scene.trigger_mqtt_topic !== topic) continue;
+    const condition = scene.trigger_condition ?? '=';
+    const target    = String(scene.trigger_value ?? '').trim();
+    const num       = parseFloat(value);
+    const prevNum   = parseFloat(prev);
+    let triggered = false;
+    if (condition === '=') {
+      triggered = (String(value).trim() === target) && (String(prev).trim() !== target);
+    } else if (!isNaN(num) && !isNaN(prevNum)) {
+      const threshold = parseFloat(target);
+      if (!isNaN(threshold)) {
+        triggered = condition === '>'
+          ? (prevNum <= threshold && num > threshold)
+          : (prevNum >= threshold && num < threshold);
+      }
+    }
+    if (!triggered) continue;
+    wsServer.broadcast({ type: 'scene-trigger', scene_id: scene.id });
+    console.log(`[Scenes] Triggered scene "${scene.name}" via ${topic} ${condition} ${target}`);
+  }
+
   for (const ev of notifEvents) {
     if (ev.mqtt_topic !== topic) continue;
 
@@ -600,13 +666,50 @@ function checkEventTriggers(topic, value) {
   }
 }
 
+// ── Scene time trigger ────────────────────────────────────────────────────────
+function checkSceneTimeTriggers() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const currentTime = `${hh}:${mm}`;
+  // JS getDay(): 0=Sun,1=Mon,...,6=Sat  →  remap to 0=Mon..6=Sun
+  const jsDay = now.getDay();
+  const dayIndex = jsDay === 0 ? 6 : jsDay - 1;
+
+  for (const scene of loadScenes()) {
+    if (scene.trigger !== 'time') continue;
+    if (scene.trigger_time !== currentTime) continue;
+    const days = scene.trigger_days ?? [0,1,2,3,4,5,6];
+    if (!days.includes(dayIndex)) continue;
+    wsServer.broadcast({ type: 'scene-trigger', scene_id: scene.id });
+    console.log(`[Scenes] Time-triggered scene "${scene.name}" at ${currentTime}`);
+  }
+}
+
+// Fire every minute, aligned to the clock minute boundary
+function scheduleTimeTrigger() {
+  const now = Date.now();
+  const msToNextMinute = 60000 - (now % 60000);
+  setTimeout(() => {
+    checkSceneTimeTriggers();
+    setInterval(checkSceneTimeTriggers, 60000);
+  }, msToNextMinute);
+}
+scheduleTimeTrigger();
+
 // Create MQTT client and wire it to the WebSocket server
 const mqttClient = createMqttClient(pageConfigs, wsServer, checkEventTriggers);
+
+function sceneTriggerTopics() {
+  return [...new Set(loadScenes().filter(s => s.trigger === 'mqtt' && s.trigger_mqtt_topic).map(s => s.trigger_mqtt_topic))];
+}
 
 // Subscribe to all event topics and WLED topics after client is created
 setTimeout(() => {
   const eventTopics = [...new Set(notifEvents.map(e => e.mqtt_topic).filter(Boolean))];
   if (eventTopics.length) mqttClient.subscribeTopics(eventTopics);
+  const sceneTopics = sceneTriggerTopics();
+  if (sceneTopics.length) mqttClient.subscribeTopics(sceneTopics);
   if (loadWledDevices().length) mqttClient.subscribeTopics(['wled/#']);
 }, 2000);
 

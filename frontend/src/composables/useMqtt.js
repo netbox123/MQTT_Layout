@@ -41,6 +41,8 @@ export function useMqtt() {
           mqttStore.setStatus(msg.status);
         } else if (msg.type === 'notification') {
           notificationStore.add(msg);
+        } else if (msg.type === 'scene-trigger') {
+          window.dispatchEvent(new CustomEvent('scene-trigger', { detail: { scene_id: msg.scene_id } }));
         } else if (msg.topic !== undefined) {
           mqttStore.setTopicValue(msg.topic, msg.value);
         }

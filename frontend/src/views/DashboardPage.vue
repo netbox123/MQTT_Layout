@@ -17,6 +17,8 @@
         <component :is="cardComponent(card.type)" :card="card" :ref="el => { if (el) cardCompRefs[i] = el }" />
         <button v-if="editing && card.type === 'url'" class="card-url-add-btn" title="Add link" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing && card.type === 'color'" class="card-url-add-btn" title="Add preset" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
+        <button v-if="editing && card.type === 'wledconfig'" class="card-url-add-btn" title="Add device" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
+        <button v-if="editing && card.type === 'scenes'" class="card-url-add-btn" title="Add scene" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing" class="card-edit-btn" title="Edit card" @click.stop="openEdit(i)">✎</button>
         <div v-if="editing" class="resize-handle" @mousedown.stop="startResize($event, i)" />
       </div>
@@ -91,6 +93,14 @@
       @cancel="editingCardIndex = null"
       @delete="deleteCard"
     />
+    <ScenesCardEditModal
+      v-if="editingCardIndex !== null && currentEditCard?.type === 'scenes'"
+      :card="currentEditCard"
+      :isNew="editingCardIndex === 'new'"
+      @save="handleSave"
+      @cancel="editingCardIndex = null"
+      @delete="deleteCard"
+    />
     <DeviceCardEditModal
       v-if="editingCardIndex !== null && (currentEditCard?.type === 'machine' || currentEditCard?.type === 'tv')"
       :card="currentEditCard"
@@ -100,11 +110,11 @@
       @delete="deleteCard"
     />
     <CardEditModal
-      v-if="editingCardIndex !== null && currentEditCard?.type !== 'grid' && currentEditCard?.type !== 'entities' && currentEditCard?.type !== 'musicassistant' && currentEditCard?.type !== 'notification' && currentEditCard?.type !== 'machine' && currentEditCard?.type !== 'tv' && currentEditCard?.type !== 'wled' && currentEditCard?.type !== 'wiim' && !(currentEditCard?.type === 'url' && editingCardIndex !== 'new') && !(currentEditCard?.type === 'color' && editingCardIndex !== 'new')"
+      v-if="editingCardIndex !== null && currentEditCard?.type !== 'grid' && currentEditCard?.type !== 'entities' && currentEditCard?.type !== 'musicassistant' && currentEditCard?.type !== 'notification' && currentEditCard?.type !== 'machine' && currentEditCard?.type !== 'tv' && currentEditCard?.type !== 'wled' && currentEditCard?.type !== 'wiim' && currentEditCard?.type !== 'scenes' && !(currentEditCard?.type === 'url' && editingCardIndex !== 'new') && !(currentEditCard?.type === 'color' && editingCardIndex !== 'new')"
       :card="currentEditCard"
       :isNew="editingCardIndex === 'new'"
-      :title="currentEditCard?.type === 'weather' ? (editingCardIndex === 'new' ? 'New Weather Card' : 'Edit Weather Card') : currentEditCard?.type === 'camera' ? (editingCardIndex === 'new' ? 'New Camera Card' : 'Edit Camera Card') : currentEditCard?.type === 'webpage' ? (editingCardIndex === 'new' ? 'New Webpage Card' : 'Edit Webpage Card') : currentEditCard?.type === 'pizza' ? (editingCardIndex === 'new' ? 'New Pizza Card' : 'Edit Pizza Card') : currentEditCard?.type === 'url' ? (editingCardIndex === 'new' ? 'New Url Card' : 'Edit Url Card') : currentEditCard?.type === 'machine' ? (editingCardIndex === 'new' ? 'New Machines Card' : 'Edit Machines') : currentEditCard?.type === 'tv' ? (editingCardIndex === 'new' ? 'New TVs Card' : 'Edit TVs') : ''"
-      :hiddenFields="currentEditCard?.type === 'pizza' ? ['title', 'mqtt_topic'] : currentEditCard?.type === 'url' ? ['title', 'mqtt_topic'] : currentEditCard?.type === 'color' ? ['title', 'mqtt_topic'] : []"
+      :title="currentEditCard?.type === 'weather' ? (editingCardIndex === 'new' ? 'New Weather Card' : 'Edit Weather Card') : currentEditCard?.type === 'camera' ? (editingCardIndex === 'new' ? 'New Camera Card' : 'Edit Camera Card') : currentEditCard?.type === 'webpage' ? (editingCardIndex === 'new' ? 'New Webpage Card' : 'Edit Webpage Card') : currentEditCard?.type === 'pizza' ? (editingCardIndex === 'new' ? 'New Pizza Card' : 'Edit Pizza Card') : currentEditCard?.type === 'url' ? (editingCardIndex === 'new' ? 'New Url Card' : 'Edit Url Card') : currentEditCard?.type === 'machine' ? (editingCardIndex === 'new' ? 'New Machines Card' : 'Edit Machines') : currentEditCard?.type === 'tv' ? (editingCardIndex === 'new' ? 'New TVs Card' : 'Edit TVs') : currentEditCard?.type === 'wledconfig' ? (editingCardIndex === 'new' ? 'New WLED Devices Card' : 'Edit WLED Devices') : ''"
+      :hiddenFields="currentEditCard?.type === 'pizza' ? ['title', 'mqtt_topic'] : currentEditCard?.type === 'url' ? ['title', 'mqtt_topic'] : currentEditCard?.type === 'color' ? ['title', 'mqtt_topic'] : currentEditCard?.type === 'wledconfig' ? ['mqtt_topic'] : currentEditCard?.type === 'scenes' ? ['mqtt_topic'] : []"
       @save="handleSave"
       @cancel="editingCardIndex = null"
       @delete="deleteCard"
@@ -113,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, inject, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, inject, provide, onMounted, onUnmounted } from 'vue';
 import SensorCard from '../components/cards/SensorCard.vue';
 import GaugeCard from '../components/cards/GaugeCard.vue';
 import SwitchCard from '../components/cards/SwitchCard.vue';
@@ -134,7 +144,9 @@ import PizzaCard from '../components/cards/PizzaCard.vue';
 import UrlCard from '../components/cards/UrlCard.vue';
 import ColorCard from '../components/cards/ColorCard.vue';
 import WledCard from '../components/cards/WledCard.vue';
+import WledConfigCard from '../components/cards/WledConfigCard.vue';
 import WiimCard from '../components/cards/WiimCard.vue';
+import ScenesCard from '../components/cards/ScenesCard.vue';
 import CardEditModal from '../components/dialogs/CardEditModal.vue';
 import GridCardEditModal from '../components/dialogs/GridCardEditModal.vue';
 import EntitiesCardEditModal from '../components/dialogs/EntitiesCardEditModal.vue';
@@ -145,6 +157,7 @@ import WiimCardEditModal from '../components/dialogs/WiimCardEditModal.vue';
 import MusicAssistantCardEditModal from '../components/dialogs/MusicAssistantCardEditModal.vue';
 import NotificationCardEditModal from '../components/dialogs/NotificationCardEditModal.vue';
 import DeviceCardEditModal from '../components/dialogs/DeviceCardEditModal.vue';
+import ScenesCardEditModal from '../components/dialogs/ScenesCardEditModal.vue';
 import CardPickerModal from '../components/dialogs/CardPickerModal.vue';
 
 const props = defineProps({
@@ -155,6 +168,18 @@ const props = defineProps({
 const page = reactive(props.pageConfig);
 
 const editing = inject('editing');
+
+provide('patchCard', async (card, patch) => {
+  const index = page.cards.indexOf(card);
+  if (index < 0) return;
+  Object.assign(card, patch);
+  const slug = page.path.replace(/^\//, '');
+  await fetch(`/api/pages/${slug}/cards/${index}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(card),
+  });
+});
 const editingCardIndex = ref(null);
 const showPicker = ref(false);
 const currentEditCard = computed(() =>
@@ -331,7 +356,9 @@ const cardDefaults = {
   url: { type: 'url', title: 'Links', position: { x: 1, y: 1, w: 2, h: 3 } },
   color: { type: 'color', position: { x: 1, y: 1, w: 2, h: 3 } },
   wled: { type: 'wled', title: 'WLED', devices: [], position: { x: 1, y: 1, w: 2, h: 3 } },
+  wledconfig: { type: 'wledconfig', title: 'WLED Devices', position: { x: 1, y: 1, w: 2, h: 3 } },
   wiim: { type: 'wiim', title: 'WiiM Pro', ip: '192.168.0.22', position: { x: 1, y: 1, w: 3, h: 2 } },
+  scenes: { type: 'scenes', title: 'New Scenes', position: { x: 1, y: 1, w: 2, h: 3 } },
 };
 
 function findEmptyPosition(w, h) {
@@ -387,7 +414,9 @@ const typeMap = {
   url: UrlCard,
   color: ColorCard,
   wled: WledCard,
+  wledconfig: WledConfigCard,
   wiim: WiimCard,
+  scenes: ScenesCard,
 };
 
 function cardComponent(type) {

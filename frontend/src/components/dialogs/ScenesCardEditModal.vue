@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div class="modal-backdrop" @click.self="$emit('cancel')">
       <div class="modal">
-        <h2 class="modal-title">{{ isNew ? 'New WLED Card' : 'Edit WLED Card' }}</h2>
+        <h2 class="modal-title">{{ isNew ? 'New Scenes Card' : 'Edit Scenes Card' }}</h2>
 
         <div class="mobile-row">
           <label class="field-label">Mobile</label>
@@ -16,17 +16,7 @@
 
         <div class="name-row">
           <label class="field-label">Name</label>
-          <input class="field-input" v-model="localTitle" placeholder="WLED" />
-        </div>
-
-        <div class="device-list">
-          <div v-if="!localDevices.length" class="no-devices">
-            No WLED devices configured — add them on the WLED page first.
-          </div>
-          <label v-for="d in localDevices" :key="d.id" class="device-item">
-            <input type="checkbox" v-model="d.enabled" />
-            <span class="device-name">{{ d.name }}</span>
-          </label>
+          <input class="field-input" v-model="localTitle" placeholder="Scenes" />
         </div>
 
         <div class="modal-actions">
@@ -54,27 +44,11 @@ const emit = defineEmits(['save', 'cancel', 'delete']);
 const localTitle       = ref(props.card.title ?? '');
 const localMobileShow  = ref(props.card.mobile_show !== false);
 const localMobileOrder = ref(props.card.mobile_order ?? 0);
-const localDevices     = ref([]);
-
-async function init() {
-  const res = await fetch('/api/wled-devices');
-  const wledDevices = res.ok ? await res.json() : [];
-  localDevices.value = wledDevices.map(d => ({
-    id:      d.id,
-    name:    d.name,
-    enabled: !!(props.card.devices ?? []).find(cd => cd.id === d.id),
-  }));
-}
-init();
 
 function save() {
-  const devices = localDevices.value
-    .filter(d => d.enabled)
-    .map(d => ({ id: d.id }));
   emit('save', {
     ...props.card,
     title:        localTitle.value,
-    devices,
     mobile_show:  localMobileShow.value,
     mobile_order: localMobileOrder.value,
   });

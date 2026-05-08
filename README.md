@@ -103,6 +103,7 @@ These are served at `/sounds/` and used by the notification system.
 | `color` | RGBW color preset manager with categories (used by WLED card) |
 | `wled` | WLED LED strip control — per-device lightbulb toggle with color preset |
 | `wiim` | WiiM / LinkPlay streamer — volume slider and input selector |
+| `scenes` | Lighting scene sequencer — play ordered sequences of dimmer, fade and HA light steps |
 
 ## Site Dashboard Integration
 
@@ -138,6 +139,7 @@ Each event links to a notification rule that defines the title, message, and sou
 | `config/wled_devices.json` | Registered WLED dimmers (id, name, IP) |
 | `config/notifications.json` | Notification history log (auto-generated) |
 | `config/notification_events.json` | MQTT trigger rules (auto-generated) |
+| `config/scenes.json` | Lighting scenes (auto-generated via UI) |
 
 ## WLED Integration
 
@@ -161,6 +163,36 @@ Color changes publish a JSON payload to `wled/{id}/api`:
 ```json
 { "on": true, "bri": 255, "seg": [{ "col": [[R, G, B, W]] }] }
 ```
+
+## Scenes
+
+The **Scenes card** lets you build and play multi-step lighting sequences across WLED dimmers and Home Assistant lights.
+
+### Scene items
+
+| Item type | Description |
+|---|---|
+| **Set dimmer** | Instantly sets all scene WLED devices to an RGBW color (`transition: 0`) |
+| **Fade** | Smoothly fades from the current color to a target RGBW color; calculated client-side in 1-second steps (no WLED 65 s limit) |
+| **Set HA light** | Calls the HA service API to turn one or more HA lights/switches ON or OFF |
+
+### Scene queue
+
+Up to two scenes can be active simultaneously — one playing (green dot + live progress bar) and one paused (red dot + frozen bar). Triggering a third scene drops the paused one and pauses the current.
+
+### Triggers
+
+Each scene can be set to fire automatically:
+
+- **MQTT** — fires on an edge-detected MQTT topic value (same `>` / `<` / `=` logic as notification events)
+- **Time** — fires at a specific time (24 h), with per-day-of-week checkboxes (MTWTFSS); scheduled server-side, aligned to the clock minute
+
+### Workflow
+
+1. Add a **Scenes card** to a dashboard page
+2. Click **+** to create a scene — give it a name, select WLED devices, and optionally configure a trigger
+3. Click the scene name to open the scene editor and add items (Set dimmer / Fade / Set HA light)
+4. Click the play button on any scene row to run it immediately
 
 ## WiiM Integration
 
