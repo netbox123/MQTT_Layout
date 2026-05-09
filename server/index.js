@@ -728,7 +728,19 @@ function runScene(scene, fromElapsed = 0) {
   }
 
   // Completion: auto-resume paused scene if any
-  const remainingMs = Math.max(0, Math.round((offset - fromElapsed) * 1000));
+  // When resuming mid-item, delay is clamped to 0 but the item runs its full duration,
+  // so compute actual last-timer time rather than simply subtracting fromElapsed.
+  let actualLastMs = 0;
+  let calcOff = 0;
+  for (const item of (scene.items ?? [])) {
+    const iEnd = calcOff + (item.duration ?? 0);
+    if (iEnd > fromElapsed) {
+      const d = Math.max(0, Math.round((calcOff - fromElapsed) * 1000));
+      actualLastMs = Math.max(actualLastMs, d + Math.round((item.duration ?? 0) * 1000));
+    }
+    calcOff = iEnd;
+  }
+  const remainingMs = Math.max(0, actualLastMs);
   timers.push(setTimeout(() => {
     activeSceneState = null;
     if (pausedSceneState) {
@@ -776,6 +788,16 @@ function triggerScene(scene) {
   runScene(scene);
   return true;
 }
+
+app.post('/api/scenes/stop', (_req, res) => {
+  if (activeSceneState) {
+    for (const t of activeSceneState.timers) clearTimeout(t);
+    activeSceneState = null;
+  }
+  pausedSceneState = null;
+  broadcastSceneState();
+  res.json({ ok: true });
+});
 
 app.post('/api/scenes/:id/execute', (req, res) => {
   const sceneId = parseInt(req.params.id);

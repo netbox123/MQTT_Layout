@@ -3,13 +3,16 @@
     <div class="card-header">
       <svg viewBox="0 0 24 24" fill="currentColor" class="header-icon"><path :d="mdiLayers" /></svg>
       {{ card.title || 'Scenes' }}
+      <button v-if="activeSceneId || pausedSceneId" class="clear-queue-btn" @click.stop="clearQueue">clear</button>
     </div>
     <div v-if="!scenes.length" class="empty-msg">No scenes configured</div>
     <div v-else class="scene-list">
       <div v-for="s in sortedScenes" :key="s._key" class="scene-row" @click="applyScene(s)">
-        <span v-if="s._slot === 'active'" class="dot dot--green"></span>
-        <span v-else-if="s._slot === 'paused'" class="dot dot--red"></span>
-        <svg v-else viewBox="0 0 24 24" fill="currentColor" class="play-icon"><path :d="mdiPlay" /></svg>
+        <span class="scene-icon-wrap">
+          <span v-if="s._slot === 'active'" class="dot dot--green"></span>
+          <span v-else-if="s._slot === 'paused'" class="dot dot--red"></span>
+          <svg v-else viewBox="0 0 24 24" fill="currentColor" class="play-icon"><path :d="mdiPlay" /></svg>
+        </span>
         <span class="scene-name" @click.stop="openDetail(s)">{{ s.name }}</span>
         <input v-if="s._slot === 'active'"
           type="range" class="progress-range"
@@ -105,7 +108,14 @@
           </div>
           <div class="items-list">
             <div v-if="!detailScene.items.length" class="no-items">No lights configured yet</div>
-            <div v-for="(item, i) in detailScene.items" :key="i" class="item-row">
+            <div v-for="(item, i) in detailScene.items" :key="i" class="item-row"
+              draggable="true"
+              :class="{ 'item-row--drag-over': dropIndex === i && dragIndex !== i }"
+              @dragstart="onDragStart(i)"
+              @dragover.prevent="onDragOver(i)"
+              @dragend="onDragEnd"
+              @drop.prevent="onDrop(i)">
+              <span class="drag-handle">⠿</span>
               <div class="item-swatch" :style="{ background: itemColor(item) }"></div>
               <span class="item-name">{{ item.name }}<span v-if="item.type === 'ha_light' && item.lights?.length" class="item-count"> ({{ item.lights.length }})</span></span>
               <span class="item-duration">{{ item.duration }}s</span>
@@ -253,15 +263,11 @@
               @input="randomForm[ch.key] = parseInt($event.target.value)" />
             <button class="sl-btn sl-btn--val" @click="randomForm[ch.key] = 255">{{ randomForm[ch.key] }}</button>
           </div>
-          <div class="slider-row duration-row">
+          <div class="random-fields-grid">
             <label class="field-label">Duration (s)</label>
             <input class="field-input field-input--short" type="number" min="1" step="1" v-model.number="randomForm.duration" />
-          </div>
-          <div class="slider-row duration-row">
             <label class="field-label">Speed (s)</label>
             <input class="field-input field-input--short" type="number" min="0.5" step="0.5" v-model.number="randomForm.speed" />
-          </div>
-          <div class="slider-row duration-row">
             <label class="field-label">Random (±)</label>
             <input class="field-input field-input--short" type="number" min="1" max="255" step="1" v-model.number="randomForm.randomAmt" />
           </div>
@@ -526,6 +532,12 @@ function scheduleItems(s) {
   }
 }
 
+async function clearQueue() {
+  try {
+    await fetch('/api/scenes/stop', { method: 'POST' });
+  } catch { /* ignore */ }
+}
+
 async function applyScene(s) {
   // Compute the accurate elapsed time of the currently-playing scene before we replace it
   const currentElapsed = activeSceneId.value && activeServerStartTime
@@ -609,7 +621,7 @@ const haLightForm = ref(null);
 function openSetHaLight(item = null, index = null) {
   const existing = item?.lights ?? [];
   haLightForm.value = {
-    duration: item?.duration ?? detailScene.value.duration ?? 1,
+    duration: item?.duration ?? 1,
     editIndex: index,
     entities: haEntities.value.map(e => {
       const match = existing.find(l => l.ha_entity_id === e.ha_entity_id);
@@ -651,6 +663,19 @@ function confirmSetHaLight() {
 
 // ── Scene detail dialog ───────────────────────────────────────────────────────
 const detailScene = ref(null);
+const dragIndex = ref(null);
+const dropIndex = ref(null);
+
+function onDragStart(i) { dragIndex.value = i; }
+function onDragOver(i) { dropIndex.value = i; }
+function onDragEnd() { dragIndex.value = null; dropIndex.value = null; }
+function onDrop(i) {
+  if (dragIndex.value === null || dragIndex.value === i) { onDragEnd(); return; }
+  const items = detailScene.value.items;
+  const [moved] = items.splice(dragIndex.value, 1);
+  items.splice(i, 0, moved);
+  onDragEnd();
+}
 
 function sceneTime(s) {
   const items = s.items ?? [];
@@ -728,7 +753,7 @@ const fadeEndColor = computed(() => {
 function openSetFade(item = null, index = null) {
   fadeForm.value = {
     e: { r: item?.r2 ?? 0, g: item?.g2 ?? 0, b: item?.b2 ?? 0, w: item?.w2 ?? 0 },
-    duration: item?.duration ?? detailScene.value.duration ?? 1,
+    duration: item?.duration ?? 10,
     editIndex: index,
   };
 }
@@ -762,7 +787,7 @@ function previewDimmer() {
 function openSetDimmer(item = null, index = null) {
   dimmerForm.value = {
     r: item?.r ?? 255, g: item?.g ?? 255, b: item?.b ?? 255, w: item?.w ?? 0,
-    duration: item?.duration ?? detailScene.value.duration ?? 1,
+    duration: item?.duration ?? 1,
     editIndex: index,
   };
 }
@@ -853,6 +878,21 @@ defineExpose({ openAdd });
 
 .header-icon { width: 13px; height: 13px; flex-shrink: 0; }
 
+.clear-queue-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 0.1rem 0.25rem;
+  border-radius: 3px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.clear-queue-btn:hover { color: var(--accent-red); }
+
 .empty-msg {
   flex: 1;
   display: flex;
@@ -879,10 +919,16 @@ defineExpose({ openAdd });
 }
 .scene-row:hover { background: var(--bg-card-hover); }
 
+.scene-icon-wrap {
+  width: 13px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .play-icon {
   width: 13px;
   height: 13px;
-  flex-shrink: 0;
   color: var(--accent-blue);
   opacity: 0.6;
 }
@@ -1157,7 +1203,18 @@ defineExpose({ openAdd });
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  border-radius: 4px;
 }
+.item-row--drag-over { outline: 1px solid var(--accent-blue); }
+.drag-handle {
+  cursor: grab;
+  color: #4b5568;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  user-select: none;
+  padding: 0 0.1rem;
+}
+.drag-handle:active { cursor: grabbing; }
 
 .item-swatch {
   width: 14px;
@@ -1302,6 +1359,13 @@ defineExpose({ openAdd });
 }
 .sl-btn:hover { border-color: #5090d0; }
 .duration-row { margin-top: 0.35rem; gap: 0.6rem; }
+.random-fields-grid {
+  display: grid;
+  grid-template-columns: max-content 8ch;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin-top: 0.35rem;
+}
 .sl-btn--val { width: 30px; box-sizing: border-box; text-align: center; }
 
 .dialog-error { font-size: 0.8rem; color: var(--accent-red); }
