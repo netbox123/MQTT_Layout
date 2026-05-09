@@ -103,7 +103,7 @@ These are served at `/sounds/` and used by the notification system.
 | `color` | RGBW color preset manager with categories (used by WLED card) |
 | `wled` | WLED LED strip control — per-device lightbulb toggle with color preset |
 | `wiim` | WiiM / LinkPlay streamer — volume slider and input selector |
-| `scenes` | Lighting scene sequencer — play ordered sequences of dimmer, fade and HA light steps |
+| `scenes` | Lighting scene sequencer — play ordered sequences of dimmer, fade, random and HA light steps |
 
 ## Site Dashboard Integration
 
@@ -173,12 +173,20 @@ The **Scenes card** lets you build and play multi-step lighting sequences across
 | Item type | Description |
 |---|---|
 | **Set dimmer** | Instantly sets all scene WLED devices to an RGBW color (`transition: 0`) |
-| **Fade** | Smoothly fades from the current color to a target RGBW color; calculated client-side in 1-second steps (no WLED 65 s limit) |
+| **Fade** | Smoothly fades from the current color to a target RGBW color; calculated in 1-second steps with `transition: 9` (no WLED 65 s limit) |
+| **Random** | Continuously fades between randomly generated RGBW colors. Choose which channels (R/G/B/W) randomize, set a base color, a **speed** (seconds between targets) and a **random** deviation (±1–255). Interpolated in 1-second steps for smooth transitions |
 | **Set HA light** | Calls the HA service API to turn one or more HA lights/switches ON or OFF |
 
 ### Scene queue
 
-Up to two scenes can be active simultaneously — one playing (green dot + live progress bar) and one paused (red dot + frozen bar). Triggering a third scene drops the paused one and pauses the current.
+Up to two scenes can be active simultaneously — one playing (green dot + live progress bar) and one paused (red dot + frozen progress bar at the paused position).
+
+When a second scene is triggered:
+- The playing scene is **paused** — its elapsed position and WLED colors are saved
+- The new scene starts from the beginning
+- When the new scene finishes, the paused scene **resumes from where it stopped**: skipped items are skipped, in-progress items continue, and the WLED dimmers are snapped back to their saved colors before resuming
+
+Triggering a third scene while both slots are full is silently denied — the queue stays unchanged.
 
 ### Triggers
 

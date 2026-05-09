@@ -6,16 +6,16 @@
     </div>
     <div v-if="!scenes.length" class="empty-msg">No scenes configured</div>
     <div v-else class="scene-list">
-      <div v-for="s in sortedScenes" :key="s.id" class="scene-row" @click="applyScene(s)">
-        <span v-if="s.id === activeSceneId" class="dot dot--green"></span>
-        <span v-else-if="s.id === pausedSceneId" class="dot dot--red"></span>
+      <div v-for="s in sortedScenes" :key="s._key" class="scene-row" @click="applyScene(s)">
+        <span v-if="s._slot === 'active'" class="dot dot--green"></span>
+        <span v-else-if="s._slot === 'paused'" class="dot dot--red"></span>
         <svg v-else viewBox="0 0 24 24" fill="currentColor" class="play-icon"><path :d="mdiPlay" /></svg>
         <span class="scene-name" @click.stop="openDetail(s)">{{ s.name }}</span>
-        <input v-if="s.id === activeSceneId"
+        <input v-if="s._slot === 'active'"
           type="range" class="progress-range"
           min="0" :max="sceneTime(s)" :value="activeElapsed"
           readonly />
-        <input v-else-if="s.id === pausedSceneId"
+        <input v-else-if="s._slot === 'paused'"
           type="range" class="progress-range progress-range--paused"
           min="0" :max="sceneTime(s)" :value="pausedElapsed"
           readonly />
@@ -101,6 +101,7 @@
             <button class="detail-btn" @click="openSetDimmer">Set dimmer</button>
             <button class="detail-btn" @click="openSetFade">Fade</button>
             <button class="detail-btn" @click="openSetHaLight">Set HA light</button>
+            <button class="detail-btn" @click="openSetRandom">Random</button>
           </div>
           <div class="items-list">
             <div v-if="!detailScene.items.length" class="no-items">No lights configured yet</div>
@@ -230,6 +231,52 @@
       </div>
     </div>
   </Teleport>
+
+  <!-- Random sub-dialog -->
+  <Teleport to="body">
+    <div v-if="randomForm" class="dialog-backdrop random-backdrop" @click.self="randomForm = null">
+      <div class="dialog">
+        <h3 class="dialog-title">Random</h3>
+
+        <div class="preview">
+          <div class="color-circle" :style="{ background: randomPreviewColor }"></div>
+        </div>
+
+        <div class="sliders">
+          <div v-for="ch in dialogChannels" :key="ch.key" class="slider-row">
+            <input type="checkbox" class="ch-check"
+              :checked="randomForm[ch.key + '_enabled']"
+              @change="randomForm[ch.key + '_enabled'] = $event.target.checked" />
+            <button class="sl-btn" :style="{ color: ch.color }" @click="randomForm[ch.key] = 0">{{ ch.label }}</button>
+            <input type="range" class="sl-range" :style="{ accentColor: ch.color, opacity: randomForm[ch.key + '_enabled'] ? 1 : 0.3 }"
+              min="0" max="255" step="1" :value="randomForm[ch.key]"
+              @input="randomForm[ch.key] = parseInt($event.target.value)" />
+            <button class="sl-btn sl-btn--val" @click="randomForm[ch.key] = 255">{{ randomForm[ch.key] }}</button>
+          </div>
+          <div class="slider-row duration-row">
+            <label class="field-label">Duration (s)</label>
+            <input class="field-input field-input--short" type="number" min="1" step="1" v-model.number="randomForm.duration" />
+          </div>
+          <div class="slider-row duration-row">
+            <label class="field-label">Speed (s)</label>
+            <input class="field-input field-input--short" type="number" min="0.5" step="0.5" v-model.number="randomForm.speed" />
+          </div>
+          <div class="slider-row duration-row">
+            <label class="field-label">Random (±)</label>
+            <input class="field-input field-input--short" type="number" min="1" max="255" step="1" v-model.number="randomForm.randomAmt" />
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <span></span>
+          <div class="dialog-actions-right">
+            <button class="dialog-cancel" @click="randomForm = null">Cancel</button>
+            <button class="dialog-confirm" @click="confirmSetRandom">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script>
@@ -262,6 +309,7 @@ const pausedElapsed = ref(0);  // seconds, frozen
 let activeTimer = null;
 let activeInterval = null;
 let activeItemTimers = [];
+let activeServerStartTime = 0;  // tracks server-reported start time of active scene
 
 function clearItemTimers() {
   for (const t of activeItemTimers) clearTimeout(t);
@@ -270,13 +318,15 @@ function clearItemTimers() {
 
 const sortedScenes = computed(() => {
   const sorted = [...scenes.value].sort((a, b) => a.name.localeCompare(b.name));
-  const rest = sorted.filter(s => s.id !== activeSceneId.value && s.id !== pausedSceneId.value);
-  const active = sorted.find(s => s.id === activeSceneId.value);
-  const paused = sorted.find(s => s.id === pausedSceneId.value);
+  const activeId = activeSceneId.value;
+  const pausedId = pausedSceneId.value;
+  const rest = sorted.filter(s => s.id !== activeId && s.id !== pausedId);
+  const active = activeId ? sorted.find(s => s.id === activeId) : null;
+  const paused = pausedId ? sorted.find(s => s.id === pausedId) : null;
   return [
-    ...(active ? [active] : []),
-    ...(paused ? [paused] : []),
-    ...rest,
+    ...(active ? [{ ...active, _key: `a-${active.id}`, _slot: 'active' }] : []),
+    ...(paused ? [{ ...paused, _key: `p-${paused.id}`, _slot: 'paused' }] : []),
+    ...rest.map(s => ({ ...s, _key: String(s.id), _slot: 'idle' })),
   ];
 });
 
@@ -301,23 +351,71 @@ async function fetchHaEntities() {
   } catch { /* ignore */ }
 }
 
+// Sync UI from server-pushed scene state
+function syncSceneState(detail) {
+  const { activeSceneId: sid, activeStartTime, activeTotalDuration, pausedSceneId: pid, pausedElapsed: pe } = detail;
+  clearTimeout(activeTimer);
+  clearInterval(activeInterval);
+  clearItemTimers();
+  pausedSceneId.value = pid ?? null;
+  pausedElapsed.value = pe ?? 0;
+  if (sid) {
+    activeSceneId.value = sid;
+    if (activeStartTime) activeServerStartTime = activeStartTime;
+    if (activeTotalDuration > 0) {
+      const elapsed = Math.min((Date.now() - activeStartTime) / 1000, activeTotalDuration);
+      activeElapsed.value = elapsed;
+      activeInterval = setInterval(() => {
+        activeElapsed.value = Math.min((Date.now() - activeStartTime) / 1000, activeTotalDuration);
+      }, 50);
+      const remaining = (activeTotalDuration - elapsed) * 1000;
+      activeTimer = setTimeout(() => {
+        clearInterval(activeInterval);
+        activeInterval = null;
+        activeSceneId.value = null;
+        activeElapsed.value = 0;
+        activeServerStartTime = 0;
+        pausedSceneId.value = null;
+        pausedElapsed.value = 0;
+      }, Math.max(0, remaining));
+    }
+  } else {
+    activeSceneId.value = null;
+    activeElapsed.value = 0;
+    activeServerStartTime = 0;
+  }
+}
+
 function onSceneTrigger(e) {
-  const scene = scenes.value.find(s => s.id === e.detail.scene_id);
-  if (scene) applyScene(scene);
+  if (!e.detail.auto) return;  // scene-state handles the UI for auto triggers
+}
+
+function onSceneState(e) {
+  syncSceneState(e.detail);
+}
+
+async function fetchSceneState() {
+  try {
+    const res = await fetch('/api/scenes/state');
+    if (res.ok) syncSceneState(await res.json());
+  } catch { /* ignore */ }
 }
 
 onMounted(() => {
   fetchScenes();
   fetchDevices();
   fetchHaEntities();
+  fetchSceneState();
   window.addEventListener('scenes-updated', fetchScenes);
   window.addEventListener('wled-devices-updated', fetchDevices);
   window.addEventListener('scene-trigger', onSceneTrigger);
+  window.addEventListener('scene-state', onSceneState);
 });
 onUnmounted(() => {
   window.removeEventListener('scenes-updated', fetchScenes);
   window.removeEventListener('wled-devices-updated', fetchDevices);
   window.removeEventListener('scene-trigger', onSceneTrigger);
+  window.removeEventListener('scene-state', onSceneState);
   clearTimeout(activeTimer);
   clearInterval(activeInterval);
   clearItemTimers();
@@ -372,18 +470,9 @@ function startActive(s, fromElapsed) {
     activeInterval = null;
     activeSceneId.value = null;
     activeElapsed.value = 0;
-
-    // Resume paused scene if any
-    if (pausedSceneId.value) {
-      const resumed = scenes.value.find(s => s.id === pausedSceneId.value);
-      const elapsed = pausedElapsed.value;
-      pausedSceneId.value = null;
-      pausedElapsed.value = 0;
-      if (resumed) {
-        publishScene(resumed, sceneTime(resumed) - elapsed);
-        startActive(resumed, elapsed);
-      }
-    }
+    // Server auto-resumes the paused scene and broadcasts scene-trigger — just clear UI
+    pausedSceneId.value = null;
+    pausedElapsed.value = 0;
   }, remaining * 1000);
 }
 
@@ -437,30 +526,23 @@ function scheduleItems(s) {
   }
 }
 
-function applyScene(s) {
-  const totalDuration = sceneTime(s);
-  const durationMs = totalDuration * 1000;
-
-  // Pause current active (drops whatever was already paused)
-  if (activeSceneId.value) {
-    pausedSceneId.value = activeSceneId.value;
-    pausedElapsed.value = activeElapsed.value;
-    clearTimeout(activeTimer);
-    clearInterval(activeInterval);
-    clearItemTimers();
-    activeSceneId.value = null;
-    activeElapsed.value = 0;
-  }
-
-  if (s.items?.length) {
-    scheduleItems(s);
-  } else {
-    publishScene(s, totalDuration);
-  }
-
-  if (durationMs) {
-    startActive(s, 0);
-  }
+async function applyScene(s) {
+  // Compute the accurate elapsed time of the currently-playing scene before we replace it
+  const currentElapsed = activeSceneId.value && activeServerStartTime
+    ? Math.max(0, (Date.now() - activeServerStartTime) / 1000)
+    : 0;
+  // Optimistic UI update — server-pushed scene-state will confirm/sync shortly
+  syncSceneState({
+    activeSceneId: s.id,
+    activeStartTime: Date.now(),
+    activeTotalDuration: sceneTime(s),
+    pausedSceneId: activeSceneId.value ? activeSceneId.value : null,
+    pausedElapsed: activeSceneId.value ? currentElapsed : 0,
+  });
+  // Server handles actual WLED/HA execution
+  try {
+    await fetch(`/api/scenes/${s.id}/execute`, { method: 'POST' });
+  } catch { /* ignore */ }
 }
 
 // ── Dialog ────────────────────────────────────────────────────────────────────
@@ -587,6 +669,12 @@ const detailTotalTime = computed(() =>
 
 function itemColor(item) {
   if (item.type === 'ha_light') return '#f0c040';
+  if (item.type === 'random') {
+    const r = Math.min(255, (item.r ?? 0) + (item.w ?? 0));
+    const g = Math.min(255, (item.g ?? 0) + (item.w ?? 0));
+    const b = Math.min(255, (item.b ?? 0) + (item.w ?? 0));
+    return `rgb(${r}, ${g}, ${b})`;
+  }
   if (item.type === 'fade') {
     const r = Math.min(255, (item.r2 ?? 0) + (item.w2 ?? 0));
     const g = Math.min(255, (item.g2 ?? 0) + (item.w2 ?? 0));
@@ -625,6 +713,7 @@ function editItem(item, index) {
   if (item.type === 'dimmer') openSetDimmer(item, index);
   else if (item.type === 'fade') openSetFade(item, index);
   else if (item.type === 'ha_light') openSetHaLight(item, index);
+  else if (item.type === 'random') openSetRandom(item, index);
 }
 
 // ── Fade sub-dialog ───────────────────────────────────────────────────────────
@@ -692,6 +781,46 @@ function confirmSetDimmer() {
     }));
   }
   dimmerForm.value = null;
+}
+
+// ── Random sub-dialog ─────────────────────────────────────────────────────────
+const randomForm = ref(null);
+
+const randomPreviewColor = computed(() => {
+  if (!randomForm.value) return '#fff';
+  const { r, g, b, w } = randomForm.value;
+  return `rgb(${Math.min(255, r + w)}, ${Math.min(255, g + w)}, ${Math.min(255, b + w)})`;
+});
+
+function openSetRandom(item = null, index = null) {
+  randomForm.value = {
+    r: item?.r ?? 128,
+    g: item?.g ?? 0,
+    b: item?.b ?? 128,
+    w: item?.w ?? 0,
+    r_enabled: item?.r_enabled ?? true,
+    g_enabled: item?.g_enabled ?? true,
+    b_enabled: item?.b_enabled ?? false,
+    w_enabled: item?.w_enabled ?? false,
+    duration: item?.duration ?? 60,
+    speed: item?.speed ?? 4,
+    randomAmt: item?.random ?? 20,
+    editIndex: index,
+  };
+}
+
+function confirmSetRandom() {
+  const { r, g, b, w, r_enabled, g_enabled, b_enabled, w_enabled, duration, speed, randomAmt, editIndex } = randomForm.value;
+  const channels = [r_enabled && 'R', g_enabled && 'G', b_enabled && 'B', w_enabled && 'W'].filter(Boolean).join('');
+  const entry = {
+    type: 'random',
+    name: `Random ${channels || 'fixed'} ±${randomAmt}`,
+    r, g, b, w, r_enabled, g_enabled, b_enabled, w_enabled,
+    duration, speed, random: randomAmt,
+  };
+  if (editIndex !== null) detailScene.value.items.splice(editIndex, 1, entry);
+  else detailScene.value.items.push(entry);
+  randomForm.value = null;
 }
 
 defineExpose({ openAdd });
@@ -1092,6 +1221,15 @@ defineExpose({ openAdd });
 .fade-duration { margin-top: 0.25rem; }
 
 .ha-backdrop { z-index: 1020; }
+.random-backdrop { z-index: 1020; }
+
+.ch-check {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--accent-blue);
+}
 .ha-dialog { width: 420px; }
 
 .ha-list {

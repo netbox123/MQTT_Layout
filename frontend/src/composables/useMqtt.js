@@ -42,7 +42,9 @@ export function useMqtt() {
         } else if (msg.type === 'notification') {
           notificationStore.add(msg);
         } else if (msg.type === 'scene-trigger') {
-          window.dispatchEvent(new CustomEvent('scene-trigger', { detail: { scene_id: msg.scene_id } }));
+          window.dispatchEvent(new CustomEvent('scene-trigger', { detail: { scene_id: msg.scene_id, auto: msg.auto } }));
+        } else if (msg.type === 'scene-state') {
+          window.dispatchEvent(new CustomEvent('scene-state', { detail: msg }));
         } else if (msg.topic !== undefined) {
           mqttStore.setTopicValue(msg.topic, msg.value);
         }

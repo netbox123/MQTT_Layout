@@ -7,6 +7,7 @@ export function createWsServer() {
   const emitter = new EventEmitter();
   const topicCache = new Map();
   let mqttStatusCache = null;
+  let sceneStateCache = null;
 
   wss.on('connection', (ws, req) => {
     clients.add(ws);
@@ -16,9 +17,11 @@ export function createWsServer() {
     for (const [topic, value] of topicCache) {
       ws.send(JSON.stringify({ topic, value }));
     }
-    // Send cached MQTT status so the client shows the correct state right away
     if (mqttStatusCache !== null) {
       ws.send(JSON.stringify({ type: 'mqtt_status', status: mqttStatusCache }));
+    }
+    if (sceneStateCache !== null) {
+      ws.send(JSON.stringify(sceneStateCache));
     }
 
     ws.on('message', (data) => {
@@ -49,6 +52,9 @@ export function createWsServer() {
     }
     if (payload.type === 'mqtt_status') {
       mqttStatusCache = payload.status;
+    }
+    if (payload.type === 'scene-state') {
+      sceneStateCache = payload;
     }
     const message = JSON.stringify(payload);
     for (const ws of clients) {

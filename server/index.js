@@ -298,6 +298,14 @@ function loadScenes() {
   try { return JSON.parse(fs.readFileSync(scenesPath, 'utf-8')); } catch { return []; }
 }
 app.get('/api/scenes', (req, res) => res.json(loadScenes()));
+app.get('/api/scenes/state', (_req, res) => res.json({
+  type: 'scene-state',
+  activeSceneId: activeSceneState?.scene?.id ?? null,
+  activeStartTime: activeSceneState?.startTime ?? null,
+  activeTotalDuration: activeSceneState ? totalSceneDuration(activeSceneState.scene) : null,
+  pausedSceneId: pausedSceneState?.scene?.id ?? null,
+  pausedElapsed: pausedSceneState?.elapsed ?? 0,
+}));
 app.patch('/api/scenes', (req, res) => {
   try {
     fs.writeFileSync(scenesPath, JSON.stringify(req.body, null, 2));
@@ -576,21 +584,226 @@ httpServer.on('upgrade', (req, socket, head) => {
   }
 });
 
+// ── Server-side scene executor ────────────────────────────────────────────
+const wledLastColor = {};     // { [deviceId]: { r, g, b, w } }
+let activeSceneState = null;  // { scene, timers, startTime } or null
+let pausedSceneState = null;  // { scene, elapsed } or null
+
+function totalSceneDuration(scene) {
+  return (scene.items ?? []).reduce((sum, item) => sum + (item.duration ?? 0), 0);
+}
+
+function broadcastSceneState() {
+  const payload = {
+    type: 'scene-state',
+    activeSceneId: activeSceneState?.scene?.id ?? null,
+    activeStartTime: activeSceneState?.startTime ?? null,
+    activeTotalDuration: activeSceneState ? totalSceneDuration(activeSceneState.scene) : null,
+    pausedSceneId: pausedSceneState?.scene?.id ?? null,
+    pausedElapsed: pausedSceneState?.elapsed ?? 0,
+  };
+  console.log(`[Scenes] State broadcast: active=${payload.activeSceneId} paused=${payload.pausedSceneId} pausedElapsed=${payload.pausedElapsed}`);
+  wsServer.broadcast(payload);
+}
+
+async function callHaServiceServer(entityId, state) {
+  if (!entityId) return;
+  const ha = loadHaConfig();
+  if (!ha.url || !ha.token) return;
+  const domain = entityId.split('.')[0] || 'light';
+  const service = String(state ?? '').toUpperCase() === 'ON' ? 'turn_on' : 'turn_off';
+  try {
+    await fetch(`${ha.url}/api/services/${domain}/${service}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${ha.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entity_id: entityId }),
+    });
+  } catch (e) {
+    console.error('[Scenes] HA call failed:', e.message);
+  }
+}
+
+// Runs a scene immediately with no queue logic — sets activeSceneState
+// fromElapsed: seconds already elapsed (for resuming a paused scene mid-way)
+function runScene(scene, fromElapsed = 0) {
+  const devices = scene.devices ?? [];
+  const timers = [];
+  let offset = 0;
+
+  for (const item of (scene.items ?? [])) {
+    const itemEnd = offset + (item.duration ?? 0);
+
+    if (itemEnd <= fromElapsed) {
+      // Item already completed before the resume point — skip it
+      offset += item.duration ?? 0;
+      continue;
+    }
+
+    const delay = Math.max(0, Math.round((offset - fromElapsed) * 1000));
+
+    if (item.type === 'dimmer') {
+      const r = item.r ?? 255, g = item.g ?? 255, b = item.b ?? 255, w = item.w ?? 0;
+      const payload = JSON.stringify({ on: true, bri: 255, transition: 0, seg: [{ col: [[r, g, b, w]] }] });
+      timers.push(setTimeout(() => {
+        for (const id of devices) {
+          mqttClient.publish(`wled/${id}/api`, payload);
+          wledLastColor[id] = { r, g, b, w };
+        }
+      }, delay));
+    } else if (item.type === 'fade') {
+      const r2 = item.r2 ?? 0, g2 = item.g2 ?? 0, b2 = item.b2 ?? 0, w2 = item.w2 ?? 0;
+      const steps = Math.max(1, Math.round(item.duration ?? 1));
+      timers.push(setTimeout(() => {
+        const startColors = {};
+        for (const id of devices) startColors[id] = { ...(wledLastColor[id] ?? { r: 0, g: 0, b: 0, w: 0 }) };
+        for (let step = 0; step <= steps; step++) {
+          const t = step / steps;
+          timers.push(setTimeout(() => {
+            for (const id of devices) {
+              const sc = startColors[id];
+              const r = Math.round(sc.r + (r2 - sc.r) * t);
+              const g = Math.round(sc.g + (g2 - sc.g) * t);
+              const b = Math.round(sc.b + (b2 - sc.b) * t);
+              const w = Math.round(sc.w + (w2 - sc.w) * t);
+              mqttClient.publish(`wled/${id}/api`, JSON.stringify({ on: true, bri: 255, transition: 9, seg: [{ col: [[r, g, b, w]] }] }));
+              if (step === steps) wledLastColor[id] = { r: r2, g: g2, b: b2, w: w2 };
+            }
+          }, step * 1000));
+        }
+      }, delay));
+    } else if (item.type === 'ha_light') {
+      const lights = [...(item.lights ?? [])];
+      timers.push(setTimeout(async () => {
+        for (const light of lights) await callHaServiceServer(light.ha_entity_id, light.state);
+      }, delay));
+    } else if (item.type === 'random') {
+      const speed = Math.max(1, item.speed ?? 4);
+      const randomAmt = item.random ?? 20;
+      const totalDur = item.duration ?? 60;
+      const numSegs = Math.max(1, Math.round(totalDur / speed));
+      const stepsPerSeg = Math.max(1, Math.round(speed));
+      const randCh = (base, enabled) =>
+        enabled ? Math.max(0, Math.min(255, Math.round((base ?? 0) + (Math.random() * 2 - 1) * randomAmt))) : (base ?? 0);
+      // Build waypoints: base color → random targets, one per speed interval
+      const waypoints = [
+        { r: item.r ?? 0, g: item.g ?? 0, b: item.b ?? 0, w: item.w ?? 0 },
+        ...Array.from({ length: numSegs }, () => ({
+          r: randCh(item.r, item.r_enabled),
+          g: randCh(item.g, item.g_enabled),
+          b: randCh(item.b, item.b_enabled),
+          w: randCh(item.w, item.w_enabled),
+        })),
+      ];
+      // Same approach as fade: interpolate 1 step per second with transition:9 (900ms)
+      for (let seg = 0; seg < numSegs; seg++) {
+        const from = waypoints[seg];
+        const to = waypoints[seg + 1];
+        for (let step = 0; step < stepsPerSeg; step++) {
+          const t = step / stepsPerSeg;
+          const r = Math.round(from.r + (to.r - from.r) * t);
+          const g = Math.round(from.g + (to.g - from.g) * t);
+          const b = Math.round(from.b + (to.b - from.b) * t);
+          const w = Math.round(from.w + (to.w - from.w) * t);
+          const payload = JSON.stringify({ on: true, bri: 255, transition: 9, seg: [{ col: [[r, g, b, w]] }] });
+          timers.push(setTimeout(() => {
+            for (const id of devices) {
+              mqttClient.publish(`wled/${id}/api`, payload);
+              wledLastColor[id] = { r, g, b, w };
+            }
+          }, delay + (seg * stepsPerSeg + step) * 1000));
+        }
+      }
+      // Final waypoint color
+      const last = waypoints[numSegs];
+      timers.push(setTimeout(() => {
+        const payload = JSON.stringify({ on: true, bri: 255, transition: 9, seg: [{ col: [[last.r, last.g, last.b, last.w]] }] });
+        for (const id of devices) {
+          mqttClient.publish(`wled/${id}/api`, payload);
+          wledLastColor[id] = { r: last.r, g: last.g, b: last.b, w: last.w };
+        }
+      }, delay + numSegs * stepsPerSeg * 1000));
+    }
+
+    offset += item.duration ?? 0;
+  }
+
+  // Completion: auto-resume paused scene if any
+  const remainingMs = Math.max(0, Math.round((offset - fromElapsed) * 1000));
+  timers.push(setTimeout(() => {
+    activeSceneState = null;
+    if (pausedSceneState) {
+      const toResume = pausedSceneState.scene;
+      const resumeElapsed = pausedSceneState.elapsed ?? 0;
+      const resumeColors = pausedSceneState.colors ?? {};
+      pausedSceneState = null;
+      // Restore dimmer colors to what they were when the scene was paused
+      for (const [id, color] of Object.entries(resumeColors)) {
+        const { r, g, b, w } = color;
+        mqttClient.publish(`wled/${id}/api`, JSON.stringify({ on: true, bri: 255, transition: 0, seg: [{ col: [[r, g, b, w]] }] }));
+        wledLastColor[id] = { r, g, b, w };
+      }
+      runScene(toResume, resumeElapsed);
+      console.log(`[Scenes] Resumed "${toResume.name}" from ${resumeElapsed.toFixed(1)}s`);
+    } else {
+      broadcastSceneState();  // broadcast idle state
+    }
+  }, remainingMs));
+
+  // startTime set backwards so (Date.now() - startTime) == fromElapsed on the client
+  activeSceneState = { scene, timers, startTime: Date.now() - Math.round(fromElapsed * 1000) };
+  broadcastSceneState();
+  console.log(`[Scenes] Running "${scene.name}" from ${fromElapsed.toFixed(1)}s (${(scene.items ?? []).length} items, ${offset}s total)`);
+}
+
+// Trigger with queue: play → pause+play → deny
+function triggerScene(scene) {
+  if (activeSceneState) {
+    if (pausedSceneState) {
+      console.log(`[Scenes] Denied "${scene.name}" — queue full`);
+      return false;
+    }
+    for (const t of activeSceneState.timers) clearTimeout(t);
+    const pausing = activeSceneState.scene;
+    const pausedElapsed = (Date.now() - activeSceneState.startTime) / 1000;
+    const pausedColors = {};
+    for (const id of (pausing.devices ?? [])) {
+      if (wledLastColor[id]) pausedColors[id] = { ...wledLastColor[id] };
+    }
+    activeSceneState = null;
+    pausedSceneState = { scene: pausing, elapsed: pausedElapsed, colors: pausedColors };
+    console.log(`[Scenes] Paused "${pausing.name}" at ${pausedElapsed.toFixed(1)}s, starting "${scene.name}"`);
+  }
+  runScene(scene);
+  return true;
+}
+
+app.post('/api/scenes/:id/execute', (req, res) => {
+  const sceneId = parseInt(req.params.id);
+  const scene = loadScenes().find(s => s.id === sceneId);
+  if (!scene) return res.status(404).json({ error: 'Scene not found' });
+  const ok = triggerScene(scene);
+  if (!ok) broadcastSceneState();  // revert client's optimistic UI update
+  res.json({ ok });
+});
+
 // ── MQTT event trigger ────────────────────────────────────────────────────
-const topicLastValues = new Map();  // topic → last numeric value seen
+const topicLastValues = new Map();  // topic → last value seen
 
 function checkEventTriggers(topic, value) {
   const prev = topicLastValues.get(topic);  // undefined on first message
   topicLastValues.set(topic, value);
 
-  // Skip first message — no previous value to compare against
-  if (prev === undefined) return;
+  // Track WLED API colors for server-side fade start colors
+  const wledApiMatch = topic.match(/^wled\/([^/]+)\/api$/);
+  if (wledApiMatch) {
+    try {
+      const parsed = JSON.parse(value);
+      const col = parsed?.seg?.[0]?.col?.[0];
+      if (col) wledLastColor[wledApiMatch[1]] = { r: col[0] ?? 0, g: col[1] ?? 0, b: col[2] ?? 0, w: col[3] ?? 0 };
+    } catch {}
+  }
 
-  const num     = parseFloat(value);
-  const prevNum = parseFloat(prev);
-  const now     = Date.now();
-
-  // Scene MQTT triggers — same edge detection as notification events
+  // Scene MQTT triggers — fire on first message too if value already matches
   for (const scene of loadScenes()) {
     if (scene.trigger !== 'mqtt' || scene.trigger_mqtt_topic !== topic) continue;
     const condition = scene.trigger_condition ?? '=';
@@ -599,19 +812,32 @@ function checkEventTriggers(topic, value) {
     const prevNum   = parseFloat(prev);
     let triggered = false;
     if (condition === '=') {
-      triggered = (String(value).trim() === target) && (String(prev).trim() !== target);
-    } else if (!isNaN(num) && !isNaN(prevNum)) {
+      const matches = String(value).trim() === target;
+      triggered = prev === undefined ? matches : (matches && String(prev).trim() !== target);
+    } else if (!isNaN(num)) {
       const threshold = parseFloat(target);
       if (!isNaN(threshold)) {
-        triggered = condition === '>'
-          ? (prevNum <= threshold && num > threshold)
-          : (prevNum >= threshold && num < threshold);
+        if (prev === undefined) {
+          triggered = condition === '>' ? num > threshold : num < threshold;
+        } else if (!isNaN(prevNum)) {
+          triggered = condition === '>'
+            ? (prevNum <= threshold && num > threshold)
+            : (prevNum >= threshold && num < threshold);
+        }
       }
     }
     if (!triggered) continue;
-    wsServer.broadcast({ type: 'scene-trigger', scene_id: scene.id });
+    wsServer.broadcast({ type: 'scene-trigger', scene_id: scene.id, auto: true });
+    triggerScene(scene);
     console.log(`[Scenes] Triggered scene "${scene.name}" via ${topic} ${condition} ${target}`);
   }
+
+  // Skip first message for notification events — no previous value to compare against
+  if (prev === undefined) return;
+
+  const num     = parseFloat(value);
+  const prevNum = parseFloat(prev);
+  const now     = Date.now();
 
   for (const ev of notifEvents) {
     if (ev.mqtt_topic !== topic) continue;
@@ -681,7 +907,8 @@ function checkSceneTimeTriggers() {
     if (scene.trigger_time !== currentTime) continue;
     const days = scene.trigger_days ?? [0,1,2,3,4,5,6];
     if (!days.includes(dayIndex)) continue;
-    wsServer.broadcast({ type: 'scene-trigger', scene_id: scene.id });
+    wsServer.broadcast({ type: 'scene-trigger', scene_id: scene.id, auto: true });
+    triggerScene(scene);
     console.log(`[Scenes] Time-triggered scene "${scene.name}" at ${currentTime}`);
   }
 }
