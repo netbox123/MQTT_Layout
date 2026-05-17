@@ -2,7 +2,7 @@
 
 A local-first, MQTT-driven home automation dashboard built with **Vue 3 + Express**. Designed to run fully off-grid with zero cloud dependencies.
 
-![Dashboard](mqttDashboard.png)
+![Dashboard](pict.jpg)
 
 ## Features
 
