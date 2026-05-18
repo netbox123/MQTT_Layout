@@ -1,8 +1,5 @@
 <template>
   <Teleport to="body">
-    <Transition name="sound-hint">
-      <div v-if="!audioUnlocked" class="sound-hint" @click="ensureAudioCtx">🔔 Click to enable sounds</div>
-    </Transition>
     <Transition name="notif-overlay">
       <div v-if="active" class="notif-overlay">
         <div class="notif-box" :class="`notif-box--${active.level || 'info'}`">
@@ -233,23 +230,6 @@ watch(() => store.activeNotification, async (n) => {
 .notif-box-cancel:hover { background: #313858; color: #e8eaf0; }
 
 /* ── Sound hint ── */
-.sound-hint {
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  background: #1e2540;
-  border: 1px solid #3d4870;
-  border-radius: 8px;
-  padding: 0.45rem 0.9rem;
-  font-size: 0.78rem;
-  color: #9aa3bc;
-  cursor: pointer;
-  z-index: 9998;
-  pointer-events: all;
-}
-.sound-hint:hover { color: #e8eaf0; border-color: var(--accent-blue); }
-.sound-hint-enter-active, .sound-hint-leave-active { transition: opacity 0.3s; }
-.sound-hint-enter-from, .sound-hint-leave-to { opacity: 0; }
 
 /* ── Transitions ── */
 .notif-overlay-enter-active { transition: opacity 0.2s, transform 0.2s; }

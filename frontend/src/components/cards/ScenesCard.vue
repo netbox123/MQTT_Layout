@@ -154,6 +154,7 @@
               @input="dimmerForm[ch.key] = parseInt($event.target.value); previewDimmer()" />
             <button class="sl-btn sl-btn--val" @click="dimmerForm[ch.key] = 255; previewDimmer()">{{ dimmerForm[ch.key] }}</button>
           </div>
+          <div class="duration-divider"></div>
           <div class="slider-row duration-row">
             <label class="field-label">Duration (s)</label>
             <input class="field-input field-input--short" type="number" min="0" step="1" v-model.number="dimmerForm.duration" />
@@ -183,14 +184,15 @@
 
         <div class="sliders">
           <div v-for="ch in dialogChannels" :key="'e'+ch.key" class="slider-row">
-            <button class="sl-btn" :style="{ color: ch.color }" @click="fadeForm.e[ch.key] = 0">{{ ch.label }}</button>
+            <button class="sl-btn" :style="{ color: ch.color }" @click="fadeForm.e[ch.key] = 0; previewFade()">{{ ch.label }}</button>
             <input type="range" class="sl-range" :style="{ accentColor: ch.color }"
               min="0" max="255" step="1" :value="fadeForm.e[ch.key]"
-              @input="fadeForm.e[ch.key] = parseInt($event.target.value)" />
-            <button class="sl-btn sl-btn--val" @click="fadeForm.e[ch.key] = 255">{{ fadeForm.e[ch.key] }}</button>
+              @input="fadeForm.e[ch.key] = parseInt($event.target.value); previewFade()" />
+            <button class="sl-btn sl-btn--val" @click="fadeForm.e[ch.key] = 255; previewFade()">{{ fadeForm.e[ch.key] }}</button>
           </div>
         </div>
 
+        <div class="duration-divider"></div>
         <div class="fields fade-duration">
           <label class="field-label">Duration (s)</label>
           <input class="field-input field-input--short" type="number" min="0" step="1" v-model.number="fadeForm.duration" />
@@ -257,12 +259,13 @@
             <input type="checkbox" class="ch-check"
               :checked="randomForm[ch.key + '_enabled']"
               @change="randomForm[ch.key + '_enabled'] = $event.target.checked" />
-            <button class="sl-btn" :style="{ color: ch.color }" @click="randomForm[ch.key] = 0">{{ ch.label }}</button>
+            <button class="sl-btn" :style="{ color: ch.color }" @click="randomForm[ch.key] = 0; previewRandom()">{{ ch.label }}</button>
             <input type="range" class="sl-range" :style="{ accentColor: ch.color, opacity: randomForm[ch.key + '_enabled'] ? 1 : 0.3 }"
               min="0" max="255" step="1" :value="randomForm[ch.key]"
-              @input="randomForm[ch.key] = parseInt($event.target.value)" />
-            <button class="sl-btn sl-btn--val" @click="randomForm[ch.key] = 255">{{ randomForm[ch.key] }}</button>
+              @input="randomForm[ch.key] = parseInt($event.target.value); previewRandom()" />
+            <button class="sl-btn sl-btn--val" @click="randomForm[ch.key] = 255; previewRandom()">{{ randomForm[ch.key] }}</button>
           </div>
+          <div class="duration-divider"></div>
           <div class="random-fields-grid">
             <label class="field-label">Duration (s)</label>
             <input class="field-input field-input--short" type="number" min="1" step="1" v-model.number="randomForm.duration" />
@@ -298,6 +301,7 @@ import { useMqtt } from '../../composables/useMqtt.js';
 const props = defineProps({ card: { type: Object, required: true } });
 
 const editing = inject('editing', ref(false));
+const patchCard = inject('patchCard', null);
 const mqttStore = useMqttStore();
 const { publish } = useMqtt();
 
@@ -326,7 +330,12 @@ const sortedScenes = computed(() => {
   const sorted = [...scenes.value].sort((a, b) => a.name.localeCompare(b.name));
   const activeId = activeSceneId.value;
   const pausedId = pausedSceneId.value;
-  const rest = sorted.filter(s => s.id !== activeId && s.id !== pausedId);
+  const allowedIds = props.card.scene_ids; // undefined = show all; [] = none; [...ids] = these only
+  const rest = sorted.filter(s => {
+    if (s.id === activeId || s.id === pausedId) return false;
+    if (allowedIds === undefined) return true;
+    return allowedIds.includes(s.id);
+  });
   const active = activeId ? sorted.find(s => s.id === activeId) : null;
   const paused = pausedId ? sorted.find(s => s.id === pausedId) : null;
   return [
@@ -592,7 +601,12 @@ async function saveScene() {
   const { isNew, error, ...data } = dialog.value;
   let updated;
   if (isNew) {
-    updated = [...scenes.value, { ...data, id: Date.now() }];
+    const newId = Date.now();
+    updated = [...scenes.value, { ...data, id: newId }];
+    // If this card has an explicit scene_ids list, add the new scene to it
+    if (patchCard && props.card.scene_ids !== undefined) {
+      await patchCard(props.card, { scene_ids: [...props.card.scene_ids, newId] });
+    }
   } else {
     updated = scenes.value.map(s => s.id === data.id ? data : s);
   }
@@ -775,6 +789,30 @@ function confirmSetFade() {
 function previewDimmer() {
   if (!dimmerForm.value) return;
   const { r, g, b, w } = dimmerForm.value;
+  for (const id of (detailScene.value?.devices ?? [])) {
+    if (!isOnline(id)) continue;
+    publish(`wled/${id}/api`, JSON.stringify({
+      on: true, bri: 255, transition: 0,
+      seg: [{ col: [[r, g, b, w]] }],
+    }));
+  }
+}
+
+function previewFade() {
+  if (!fadeForm.value) return;
+  const { r, g, b, w } = fadeForm.value.e;
+  for (const id of (detailScene.value?.devices ?? [])) {
+    if (!isOnline(id)) continue;
+    publish(`wled/${id}/api`, JSON.stringify({
+      on: true, bri: 255, transition: 0,
+      seg: [{ col: [[r, g, b, w]] }],
+    }));
+  }
+}
+
+function previewRandom() {
+  if (!randomForm.value) return;
+  const { r, g, b, w } = randomForm.value;
   for (const id of (detailScene.value?.devices ?? [])) {
     if (!isOnline(id)) continue;
     publish(`wled/${id}/api`, JSON.stringify({
@@ -1359,6 +1397,7 @@ defineExpose({ openAdd });
 }
 .sl-btn:hover { border-color: #5090d0; }
 .duration-row { margin-top: 0.35rem; gap: 0.6rem; }
+.duration-divider { height: 0.6rem; }
 .random-fields-grid {
   display: grid;
   grid-template-columns: max-content 8ch;

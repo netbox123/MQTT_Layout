@@ -20,6 +20,9 @@
           <label class="field-label">ma token</label>
           <input class="field-input" type="text" v-model="fields.ma_token" />
 
+          <label class="field-label">last.fm key</label>
+          <input class="field-input" type="text" v-model="fields.lastfm_api_key" placeholder="optional – for radio album art" />
+
           <label class="field-label">player</label>
           <select class="field-input" v-model="fields.player_id">
             <option value="">Auto</option>
@@ -85,11 +88,12 @@ const props = defineProps({
 const emit = defineEmits(['save', 'cancel', 'delete']);
 
 const fields = reactive({
-  ma_url:       props.card.ma_url    || 'http://192.168.0.20:8095',
-  ma_token:     props.card.ma_token  || '',
-  player_id:    props.card.player_id || '',
-  mobile_show:  props.card.mobile_show  !== false,
-  mobile_order: props.card.mobile_order ?? 0,
+  ma_url:         props.card.ma_url         || 'http://192.168.0.20:8095',
+  ma_token:       props.card.ma_token       || '',
+  lastfm_api_key: props.card.lastfm_api_key || '',
+  player_id:      props.card.player_id      || '',
+  mobile_show:    props.card.mobile_show    !== false,
+  mobile_order:   props.card.mobile_order   ?? 0,
 });
 
 const ma = useMusicAssistant(fields.ma_url, fields.ma_token);
@@ -146,12 +150,13 @@ function cycleRepeat() {
 
 function save() {
   const out = {
-    type:         props.card.type,
-    ma_url:       fields.ma_url,
-    ma_token:     fields.ma_token,
-    position:     props.card.position,
-    mobile_show:  fields.mobile_show,
-    mobile_order: fields.mobile_order,
+    type:           props.card.type,
+    ma_url:         fields.ma_url,
+    ma_token:       fields.ma_token,
+    lastfm_api_key: fields.lastfm_api_key,
+    position:       props.card.position,
+    mobile_show:    fields.mobile_show,
+    mobile_order:   fields.mobile_order,
   };
   if (fields.player_id) out.player_id = fields.player_id;
   emit('save', out);

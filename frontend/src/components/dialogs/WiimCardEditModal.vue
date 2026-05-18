@@ -20,6 +20,14 @@
 
           <label class="field-label">IP Address</label>
           <input class="field-input" type="text" v-model="form.ip" placeholder="192.168.0.22" />
+
+          <div class="input-labels-header">Input labels</div>
+          <div class="input-labels-grid">
+            <template v-for="inp in INPUTS" :key="inp.id">
+              <span class="input-default-name">{{ inp.label }}</span>
+              <input class="field-input" type="text" v-model="form.input_labels[inp.id]" :placeholder="inp.label" />
+            </template>
+          </div>
         </div>
 
         <div class="modal-actions">
@@ -38,26 +46,41 @@
 <script setup>
 import { reactive } from 'vue';
 
+const INPUTS = [
+  { id: 'wifi',      label: 'WiFi'    },
+  { id: 'bluetooth', label: 'BT'      },
+  { id: 'line-in',   label: 'Line In' },
+  { id: 'optical',   label: 'Optical' },
+];
+
 const props = defineProps({
   card:  { type: Object,  required: true },
   isNew: { type: Boolean, default: false },
 });
 const emit = defineEmits(['save', 'cancel', 'delete']);
 
+const savedLabels = props.card.input_labels ?? {};
+
 const form = reactive({
   title:        props.card.title        ?? '',
   ip:           props.card.ip           ?? '',
   mobile_show:  props.card.mobile_show  ?? true,
   mobile_order: props.card.mobile_order ?? 0,
+  input_labels: Object.fromEntries(INPUTS.map(i => [i.id, savedLabels[i.id] ?? ''])),
 });
 
 function save() {
+  // Only save non-empty labels
+  const labels = Object.fromEntries(
+    Object.entries(form.input_labels).filter(([, v]) => v.trim())
+  );
   emit('save', {
     ...props.card,
     title:        form.title,
     ip:           form.ip,
     mobile_show:  form.mobile_show,
     mobile_order: form.mobile_order,
+    input_labels: Object.keys(labels).length ? labels : undefined,
   });
 }
 </script>
@@ -123,6 +146,29 @@ function save() {
 }
 .field-input:focus { border-color: var(--accent-blue); }
 .field-input--short { width: 8ch !important; }
+
+.input-labels-header {
+  grid-column: 1 / -1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7694;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.75rem;
+}
+.input-labels-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 0.75rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.input-default-name {
+  font-size: 0.8rem;
+  color: #9aa3bc;
+  white-space: nowrap;
+}
 
 .field-checkbox {
   display: flex;

@@ -19,6 +19,18 @@
           <input class="field-input" v-model="localTitle" placeholder="Scenes" />
         </div>
 
+        <div class="scenes-section">
+          <label class="field-label">Visible scenes</label>
+          <div class="scene-check-list">
+            <div v-if="!allScenes.length" class="no-scenes">No scenes found</div>
+            <label v-for="s in allScenes" :key="s.id" class="scene-check-item">
+              <input type="checkbox" :value="s.id" v-model="localSceneIds" />
+              <span class="scene-check-name">{{ s.name }}</span>
+            </label>
+          </div>
+          <p class="scenes-hint">Unchecked scenes are hidden. Active/paused scenes always show.</p>
+        </div>
+
         <div class="modal-actions">
           <button v-if="!isNew" class="modal-delete" @click="$emit('delete')">Delete</button>
           <span v-else></span>
@@ -33,7 +45,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 
 const props = defineProps({
   card:  { type: Object,  required: true },
@@ -44,6 +56,21 @@ const emit = defineEmits(['save', 'cancel', 'delete']);
 const localTitle       = ref(props.card.title ?? '');
 const localMobileShow  = ref(props.card.mobile_show !== false);
 const localMobileOrder = ref(props.card.mobile_order ?? 0);
+const localSceneIds    = ref([]);
+const allScenes        = ref([]);
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/scenes');
+    if (res.ok) {
+      allScenes.value = (await res.json()).sort((a, b) => a.name.localeCompare(b.name));
+      // undefined = never configured → pre-check all scenes
+      localSceneIds.value = props.card.scene_ids === undefined
+        ? allScenes.value.map(s => s.id)
+        : [...props.card.scene_ids];
+    }
+  } catch { /* ignore */ }
+});
 
 function save() {
   emit('save', {
@@ -51,6 +78,7 @@ function save() {
     title:        localTitle.value,
     mobile_show:  localMobileShow.value,
     mobile_order: localMobileOrder.value,
+    scene_ids:    localSceneIds.value,
   });
 }
 </script>
@@ -111,22 +139,40 @@ function save() {
 .field-input--short { width: 8ch; }
 .field-input:focus { border-color: var(--accent-blue); }
 
-.device-list {
+.scenes-section {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
-.no-devices { font-size: 0.85rem; color: var(--text-muted); }
+.scene-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid #3d4870;
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  background: #2a3150;
+}
 
-.device-item {
+.no-scenes { font-size: 0.85rem; color: var(--text-muted); }
+
+.scene-check-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
 }
 
-.device-name { font-size: 0.875rem; color: var(--text-primary); }
+.scene-check-name { font-size: 0.875rem; color: var(--text-primary); }
+
+.scenes-hint {
+  font-size: 0.73rem;
+  color: #6b7694;
+  margin: 0;
+}
 
 .modal-actions {
   display: flex;

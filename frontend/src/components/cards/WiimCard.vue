@@ -28,7 +28,7 @@
           class="input-btn"
           :class="{ 'input-btn--active': activeInput === inp.id }"
           @click="switchInput(inp)"
-        >{{ inp.label }}</button>
+        >{{ props.card.input_labels?.[inp.id] || inp.label }}</button>
       </div>
     </template>
   </div>
@@ -47,11 +47,10 @@ const props = defineProps({
 });
 
 const INPUTS = [
-  { id: 'wifi',      label: 'WiFi',    modes: [1, 2, 10, 11, 31, 32, 33, 34, 35], cmd: 'wifi' },
+  { id: 'wifi',      label: 'WiFi',    modes: [0, 1, 2, 5, 10, 11, 31, 32, 33, 34, 35], cmd: 'wifi' },
   { id: 'bluetooth', label: 'BT',      modes: [41],                                cmd: 'bluetooth' },
   { id: 'line-in',   label: 'Line In', modes: [40],                                cmd: 'line-in' },
   { id: 'optical',   label: 'Optical', modes: [43],                                cmd: 'optical' },
-  { id: 'coaxial',   label: 'Coaxial', modes: [44, 45],                            cmd: 'co-axial' },
 ];
 
 const volume  = ref(50);
@@ -208,6 +207,6 @@ onUnmounted(() => clearInterval(pollTimer));
 .input-btn--active {
   background: #1c2a40;
   border-color: #5090d0;
-  color: #5090d0;
+  color: #fff;
 }
 </style>

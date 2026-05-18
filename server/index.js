@@ -77,6 +77,19 @@ app.get('/api/imageproxy', async (req, res) => {
   }
 });
 
+app.get('/api/lastfm', async (req, res) => {
+  const { api_key, artist, track } = req.query;
+  if (!api_key || !artist || !track) return res.status(400).end();
+  try {
+    const url = `https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${encodeURIComponent(api_key)}&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(track)}&format=json`;
+    const upstream = await fetch(url);
+    const data = await upstream.json();
+    res.json(data);
+  } catch {
+    res.status(502).end();
+  }
+});
+
 // REST endpoint — frontend fetches this once to build its router and sidebar
 app.get('/api/pages', (req, res) => {
   res.json(pageConfigs);

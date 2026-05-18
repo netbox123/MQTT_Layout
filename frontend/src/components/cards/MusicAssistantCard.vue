@@ -188,18 +188,59 @@ const progressPct = computed(() => duration.value ? Math.min(100, (localElapsed.
 
 // ── Album art ──────────────────────────────────────────────────────────────
 const maArtUrl = computed(() => {
-  const item = currentTrack.value;
+  const qItem = currentItem.value;
+  const item  = currentTrack.value;
+  const base  = (props.card.ma_url || 'http://192.168.0.20:8095').replace(/\/$/, '');
+
+  function buildUrl(imgObj) {
+    if (!imgObj) return '';
+    if (typeof imgObj === 'string') return imgObj;
+    if (!imgObj.path) return '';
+    return `${base}/imageproxy?path=${encodeURIComponent(encodeURIComponent(imgObj.path))}&provider=${encodeURIComponent(imgObj.provider ?? '')}&checksum=&size=256`;
+  }
+
+  // MA 2.9+: QueueItem carries per-song art (album art resolved from stream metadata)
+  const fromQueue = buildUrl(qItem?.image) || buildUrl(qItem?.streamdetails?.metadata?.images?.[0]);
+  if (fromQueue) return fromQueue;
+
+  // Fallback: station logo / track art from the media item itself
   if (!item) return '';
-  const base = (props.card.ma_url || 'http://192.168.0.20:8095').replace(/\/$/, '');
-  const imgObj = item.metadata?.images?.[0] || item.album?.metadata?.images?.[0];
-  if (!imgObj?.path) return '';
-  return `${base}/imageproxy?path=${encodeURIComponent(encodeURIComponent(imgObj.path))}&provider=${encodeURIComponent(imgObj.provider)}&checksum=&size=256`;
+  return buildUrl(item.metadata?.images?.[0] || item.album?.metadata?.images?.[0]);
 });
 
-// Route through dashboard proxy so canvas can read pixels (same-origin)
-const artUrl = computed(() =>
-  maArtUrl.value ? `/api/imageproxy?url=${encodeURIComponent(maArtUrl.value)}` : ''
+// ── Last.fm per-song album art (radio streams) ─────────────────────────────
+const lastfmArtUrl = ref('');
+let lastfmCacheKey = '';
+
+watch(
+  [() => currentItem.value?.streamdetails?.stream_metadata?.artist,
+   () => currentItem.value?.streamdetails?.stream_metadata?.title],
+  async ([artist, title]) => {
+    const apiKey = props.card.lastfm_api_key;
+    if (!apiKey || !artist || !title) { lastfmArtUrl.value = ''; return; }
+    const key = `${artist}|||${title}`;
+    if (key === lastfmCacheKey) return;
+    lastfmCacheKey = key;
+    try {
+      const url = `/api/lastfm?api_key=${encodeURIComponent(apiKey)}&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}`;
+      const res  = await fetch(url);
+      const data = await res.json();
+      const images = data?.track?.album?.image ?? [];
+      const img = images.find(i => i.size === 'extralarge') ?? images[images.length - 1];
+      console.log('[lastfm]', artist, '-', title, '→', img?.['#text'], data?.error, data?.message);
+      lastfmArtUrl.value = img?.['#text'] || '';
+    } catch {
+      lastfmArtUrl.value = '';
+    }
+  },
+  { immediate: true },
 );
+
+// Route through dashboard proxy so canvas can read pixels (same-origin)
+const artUrl = computed(() => {
+  const url = lastfmArtUrl.value || maArtUrl.value;
+  return url ? `/api/imageproxy?url=${encodeURIComponent(url)}` : '';
+});
 
 // ── Shuffle / Repeat ───────────────────────────────────────────────────────
 const shuffleEnabled = computed(() => activeQueue.value?.shuffle_enabled ?? false);
