@@ -19,12 +19,14 @@
   --accent-red: #f87171;
   --accent-purple: #a78bfa;
   --sidebar-width: 190px;
+  --font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-size: 14px;
 }
 
 html, body {
   height: 100%;
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  font-size: 14px;
+  font-family: var(--font-family);
+  font-size: var(--font-size);
   background: var(--bg-base);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;

@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "name": "Default Dark",
+    "vars": {
+      "--bg-base": "#0f1117",
+      "--bg-surface": "#1a1f2e",
+      "--bg-card": "#1e2336",
+      "--bg-card-hover": "#252b40",
+      "--border": "#2d3452",
+      "--text-primary": "#e8eaf0",
+      "--text-secondary": "#8892b0",
+      "--text-muted": "#4a5578",
+      "--accent-blue": "#4f8ef7",
+      "--accent-green": "#4ade80",
+      "--accent-yellow": "#fbbf24",
+      "--accent-red": "#f87171",
+      "--font-family": "Inter, Segoe UI, system-ui, sans-serif",
+      "--font-size": "14px"
+    }
+  },
+  {
+    "id": 1779096700462,
+    "name": "theme2",
+    "vars": {
+      "--bg-base": "#5c0700",
+      "--bg-surface": "#5a1c00",
+      "--bg-card": "#61177c",
+      "--bg-card-hover": "#b18cfe",
+      "--border": "#2d3452",
+      "--text-primary": "#d9eb37",
+      "--text-secondary": "#fecb3e",
+      "--text-muted": "#8d8600",
+      "--accent-blue": "#4f8ef7",
+      "--accent-green": "#4ade80",
+      "--accent-yellow": "#fbbf24",
+      "--accent-red": "#f87171",
+      "--font-family": "\"Trebuchet MS\", sans-serif",
+      "--font-size": "15px"
+    }
+  }
+]

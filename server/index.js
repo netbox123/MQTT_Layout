@@ -375,6 +375,19 @@ app.patch('/api/colors', (req, res) => {
   }
 });
 
+// Themes JSON — read/write
+const themesPath = path.join(__dirname, '../config/themes.json');
+app.get('/api/themes', (_req, res) => {
+  try { res.json(JSON.parse(fs.readFileSync(themesPath, 'utf-8'))); }
+  catch { res.json([]); }
+});
+app.patch('/api/themes', (req, res) => {
+  try {
+    fs.writeFileSync(themesPath, JSON.stringify(req.body, null, 2));
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // URLs JSON — read/write
 const urlsPath = path.join(__dirname, '../config/urls.json');
 app.get('/api/urls', (req, res) => {

@@ -64,6 +64,7 @@ import WiimCard from '../components/cards/WiimCard.vue';
 import WledCard from '../components/cards/WledCard.vue';
 import WledConfigCard from '../components/cards/WledConfigCard.vue';
 import ScenesCard from '../components/cards/ScenesCard.vue';
+import ThemeCard from '../components/cards/ThemeCard.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -78,7 +79,7 @@ const typeMap = {
   webpage: WebpageCard, grid: GridCard, indicator: IndicatorCard,
   weather: WeatherCard, entities: EntitiesCard,
   musicassistant: MusicAssistantCard, recipe: RecipeCard, pizza: PizzaCard, url: UrlCard, notification: NotificationCard,
-  machine: MachineCard, tv: TvCard, color: ColorCard, wled: WledCard, wledconfig: WledConfigCard, wiim: WiimCard, scenes: ScenesCard,
+  machine: MachineCard, tv: TvCard, color: ColorCard, wled: WledCard, wledconfig: WledConfigCard, wiim: WiimCard, scenes: ScenesCard, theme: ThemeCard,
 };
 
 function cardComponent(type) {

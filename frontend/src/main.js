@@ -1,10 +1,30 @@
 import { createApp, ref } from 'vue';
 import { createPinia } from 'pinia';
 import './style.css';
+import '@fontsource/roboto/400.css';
+import '@fontsource/roboto/500.css';
+import '@fontsource/open-sans/400.css';
+import '@fontsource/open-sans/500.css';
+import '@fontsource/lato/400.css';
+import '@fontsource/lato/700.css';
+import '@fontsource/nunito/400.css';
+import '@fontsource/nunito/500.css';
+import '@fontsource/ubuntu/400.css';
+import '@fontsource/ubuntu/500.css';
 import App from './App.vue';
 import { createAppRouter, createPageRoute } from './router/index.js';
 import { useMqtt } from './composables/useMqtt.js';
 import { useNotificationStore } from './stores/notificationStore.js';
+
+// Restore saved theme before first render to avoid flash
+try {
+  const saved = localStorage.getItem('active_theme');
+  if (saved) {
+    const vars = JSON.parse(saved);
+    for (const [k, v] of Object.entries(vars))
+      document.documentElement.style.setProperty(k, v);
+  }
+} catch { /* ignore */ }
 
 async function bootstrap() {
   const { router, pageConfigs } = await createAppRouter();

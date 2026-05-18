@@ -9,7 +9,7 @@ A local-first, MQTT-driven home automation dashboard built with **Vue 3 + Expres
 - **Real-time MQTT data** — sensors, switches, gauges, indicators all driven by MQTT topics
 - **Weather card** — 7-day forecast via Open-Meteo (no API key needed)
 - **Camera cards** — live MJPEG streams with proxy support
-- **Music Assistant** — full player control with queue, browse, radio tabs and audio announcements
+- **Music Assistant** — full player control with queue, browse, radio tabs and audio announcements; album art via Last.fm lookup for radio streams
 - **Notification system** — persistent log, overlay with sounds, edge-triggered MQTT events
   - Plays sounds locally and via Music Assistant on all active players
   - Edge detection: fires only when a value *crosses* a threshold (not on every message)
@@ -22,6 +22,7 @@ A local-first, MQTT-driven home automation dashboard built with **Vue 3 + Expres
 - **Edit mode** — all cards support drag-and-drop repositioning and grid resizing directly in the browser; add, remove and configure cards without touching config files
 - **Philips TV remote** — dedicated full-screen remote page at `/remote`, optimised for iPhone (no sidebar, large touch targets)
 - **WLED integration** — register WLED dimmers via the `/wled` device page; control them with the WLED card; color presets managed via the Color card
+- **Theme system** — create, edit and apply custom UI themes; live preview while editing colors and fonts; themes persist across sessions
 - **Caddy reverse proxy** — HTTPS with basic auth, WebSocket support
 
 ## Stack
@@ -93,7 +94,7 @@ These are served at `/sounds/` and used by the notification system.
 | `camera` | MJPEG stream with snapshot |
 | `entities` | List of HA entities with state |
 | `grid` | Mini sensor/switch grid |
-| `musicassistant` | Music Assistant player card |
+| `musicassistant` | Music Assistant player card with album art |
 | `notification` | Persistent notification log |
 | `url` | Categorised link launcher |
 | `webpage` | Embedded iframe |
@@ -102,8 +103,9 @@ These are served at `/sounds/` and used by the notification system.
 | `tv` | Network TVs — online status, Wake on LAN, power off |
 | `color` | RGBW color preset manager with categories (used by WLED card) |
 | `wled` | WLED LED strip control — per-device lightbulb toggle with color preset |
-| `wiim` | WiiM / LinkPlay streamer — volume slider and input selector |
+| `wiim` | WiiM / LinkPlay streamer — volume slider and input selector with custom labels |
 | `scenes` | Lighting scene sequencer — play ordered sequences of dimmer, fade, random and HA light steps |
+| `theme` | UI theme manager — create and apply custom color and font themes with live preview |
 
 ## Site Dashboard Integration
 
@@ -137,6 +139,7 @@ Each event links to a notification rule that defines the title, message, and sou
 | `config/urls.json` | URL launcher categories and links |
 | `config/colors.json` | RGBW color preset categories and values |
 | `config/wled_devices.json` | Registered WLED dimmers (id, name, IP) |
+| `config/themes.json` | UI themes (auto-generated via Theme card) |
 | `config/notifications.json` | Notification history log (auto-generated) |
 | `config/notification_events.json` | MQTT trigger rules (auto-generated) |
 | `config/scenes.json` | Lighting scenes (auto-generated via UI) |
@@ -211,9 +214,18 @@ The `wiim` card controls any WiiM or LinkPlay-based streamer over its local HTTP
 | `title` | Display name |
 | `ip` | Device IP address (e.g. `192.168.0.22`) |
 
-The card polls the device every 3 seconds for live volume and input state. Volume changes are debounced and sent immediately on release. Supported inputs: WiFi, Bluetooth, Line In, Optical, Coaxial.
+The card polls the device every 3 seconds for live volume and input state. Volume changes are debounced and sent immediately on release. Supported inputs: WiFi, Bluetooth, Line In, Optical. Input button labels can be customised per card via the edit dialog.
 
 The server proxies all requests to `https://{ip}/httpapi.asp` (bypassing the self-signed certificate) to avoid CORS issues in the browser.
+
+## Theme System
+
+The **Theme card** lets you create and manage custom UI themes. Each theme defines the full set of CSS variables used by the dashboard — background colors, text colors, accent colors, font family and font size.
+
+- **Live preview** — changes apply instantly to the dashboard as you edit
+- **Revert on cancel** — closing the dialog without saving restores the previous appearance
+- **Persist on apply** — applied theme is saved to `localStorage` and restored on next load with no flash
+- **Fonts bundled** — Inter, Roboto, Open Sans, Lato, Nunito and Ubuntu are served directly from the app with no CDN dependency
 
 ## License
 
