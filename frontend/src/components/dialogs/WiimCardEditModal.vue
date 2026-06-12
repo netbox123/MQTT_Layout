@@ -21,8 +21,14 @@
           <label class="field-label">IP Address</label>
           <input class="field-input" type="text" v-model="form.ip" placeholder="192.168.0.22" />
 
-          <div class="input-labels-header">Input labels</div>
-          <div class="input-labels-grid">
+          <div class="input-labels-header">
+            Input labels
+            <label class="field-checkbox">
+              <input type="checkbox" v-model="form.show_inputs" />
+              <span>{{ form.show_inputs ? 'Show' : 'Hide' }}</span>
+            </label>
+          </div>
+          <div v-if="form.show_inputs" class="input-labels-grid">
             <template v-for="inp in INPUTS" :key="inp.id">
               <span class="input-default-name">{{ inp.label }}</span>
               <input class="field-input" type="text" v-model="form.input_labels[inp.id]" :placeholder="inp.label" />
@@ -66,6 +72,7 @@ const form = reactive({
   ip:           props.card.ip           ?? '',
   mobile_show:  props.card.mobile_show  ?? true,
   mobile_order: props.card.mobile_order ?? 0,
+  show_inputs:  props.card.show_inputs  ?? true,
   input_labels: Object.fromEntries(INPUTS.map(i => [i.id, savedLabels[i.id] ?? ''])),
 });
 
@@ -80,6 +87,7 @@ function save() {
     ip:           form.ip,
     mobile_show:  form.mobile_show,
     mobile_order: form.mobile_order,
+    show_inputs:  form.show_inputs,
     input_labels: Object.keys(labels).length ? labels : undefined,
   });
 }
@@ -155,6 +163,9 @@ function save() {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .input-labels-grid {
   grid-column: 1 / -1;
@@ -177,6 +188,8 @@ function save() {
   font-size: 0.875rem;
   color: var(--text-primary);
   cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .modal-actions {

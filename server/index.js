@@ -305,6 +305,41 @@ app.patch('/api/wled-devices', (req, res) => {
   }
 });
 
+// IR Devices — read/write
+const irDevicesPath = path.join(__dirname, '../config/ir_devices.json');
+function loadIrDevices() {
+  try { return JSON.parse(fs.readFileSync(irDevicesPath, 'utf-8')); } catch { return []; }
+}
+app.get('/api/ir-devices', (req, res) => res.json(loadIrDevices()));
+app.patch('/api/ir-devices', (req, res) => {
+  try {
+    fs.writeFileSync(irDevicesPath, JSON.stringify(req.body, null, 2));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// IR Receivers — read/write (keyed by config_key)
+const irReceiversPath = path.join(__dirname, '../config/ir_receivers.json');
+function loadIrReceivers() {
+  try { return JSON.parse(fs.readFileSync(irReceiversPath, 'utf-8')); } catch { return {}; }
+}
+app.get('/api/ir-receivers/:key', (req, res) => {
+  const all = loadIrReceivers();
+  res.json(all[req.params.key] ?? []);
+});
+app.patch('/api/ir-receivers/:key', (req, res) => {
+  try {
+    const all = loadIrReceivers();
+    all[req.params.key] = req.body;
+    fs.writeFileSync(irReceiversPath, JSON.stringify(all, null, 2));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Scenes JSON — read/write
 const scenesPath = path.join(__dirname, '../config/scenes.json');
 function loadScenes() {

@@ -1,15 +1,20 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import DashboardPage from '../views/DashboardPage.vue';
+import BatteryPage from '../views/BatteryPage.vue';
 import MobilePage from '../views/MobilePage.vue';
 import RemotePage from '../views/RemotePage.vue';
 import WledPage from '../views/WledPage.vue';
 import NotFound from '../views/NotFound.vue';
 
+const PAGE_COMPONENTS = {
+  battery: BatteryPage,
+};
+
 export function createPageRoute(config) {
   return {
     path: config.path,
     name: config.name,
-    component: DashboardPage,
+    component: PAGE_COMPONENTS[config.page_type] ?? DashboardPage,
     props: { pageConfig: config },
   };
 }

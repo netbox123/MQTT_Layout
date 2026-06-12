@@ -18,9 +18,13 @@ export function loadAllPageConfigs() {
     const raw = fs.readFileSync(filePath, 'utf-8');
     const config = JSON.parse(raw);
 
-    if (!config.name || !config.path || !Array.isArray(config.cards)) {
-      throw new Error(`Invalid config in ${file}: requires name, path, and cards[]`);
+    if (!config.name || !config.path) {
+      throw new Error(`Invalid config in ${file}: requires name and path`);
     }
+    if (!config.page_type && !Array.isArray(config.cards)) {
+      throw new Error(`Invalid config in ${file}: requires cards[] (or page_type for custom pages)`);
+    }
+    if (!config.cards) config.cards = [];
 
     return config;
   }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -29,6 +33,15 @@ export function loadAllPageConfigs() {
 export function extractAllTopics(pageConfigs) {
   const topics = new Set();
   for (const page of pageConfigs) {
+    // Battery pages store topics in groups[].packs[].topic
+    if (page.page_type === 'battery') {
+      for (const group of page.groups ?? []) {
+        for (const pack of group.packs ?? []) {
+          if (pack.topic) topics.add(pack.topic);
+        }
+      }
+      continue;
+    }
     for (const card of page.cards) {
       if (card.mqtt_topic) topics.add(card.mqtt_topic);
       if (card.command_topic) topics.add(card.command_topic);

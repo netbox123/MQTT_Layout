@@ -1,0 +1,18 @@
+{
+  "default": [
+    {
+      "id": "mqaswr8g",
+      "name": "Living roomTV",
+      "type": "philips_tv",
+      "transmitter_id": "IR1",
+      "commands": {}
+    },
+    {
+      "id": "mqasxbbm",
+      "name": "Sound bar",
+      "type": "soundbar",
+      "transmitter_id": "IR1",
+      "commands": {}
+    }
+  ]
+}

@@ -359,8 +359,18 @@ async function updateColors(url) {
   }
   accentBg.value = bestBg ? rgbToHex(bestBg) : '';
 
+  // Choose text lightness based on background luminance (WCAG midpoint ≈ 0.18)
+  const bgLum = bestBg ? relativeLuminance(bestBg) : 0.05;
+  const onLight = bgLum > 0.18;
+
   const hue = extractVividHue(data);
-  accentFg.value = hue >= 0 ? `hsl(${hue}, 80%, 65%)` : '#e8eaf0';
+  if (hue >= 0) {
+    // Dark text on light bg, light text on dark bg
+    const lightness = onLight ? 22 : 76;
+    accentFg.value = `hsl(${hue}, 80%, ${lightness}%)`;
+  } else {
+    accentFg.value = onLight ? '#1c1c1e' : '#e8eaf0';
+  }
 }
 
 watch(artUrl, url => updateColors(url), { immediate: true });

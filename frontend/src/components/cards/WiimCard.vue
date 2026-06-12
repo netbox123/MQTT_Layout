@@ -21,7 +21,7 @@
         />
         <span class="vol-value">{{ volume }}</span>
       </div>
-      <div class="input-row">
+      <div v-if="card.show_inputs !== false" class="input-row">
         <button
           v-for="inp in INPUTS"
           :key="inp.id"

@@ -9,7 +9,7 @@ const instances = new Map();
 export function getMaInstances() { return [...instances.values()]; }
 
 export function useMusicAssistant(maUrl, maToken) {
-  const key = maUrl;
+  const key = maUrl + '|' + maToken;
   if (instances.has(key)) return instances.get(key);
 
   // ── State ──────────────────────────────────────────────────────────────────

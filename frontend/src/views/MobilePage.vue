@@ -1,40 +1,55 @@
 <template>
   <div class="mobile-page">
-    <nav class="mobile-nav">
-      <button
-        v-for="p in mobilePages"
-        :key="p.path"
-        class="mobile-nav-link"
-        :class="{ 'mobile-nav-link--active': p.path === activePath }"
-        @click="setActive(p)"
-      >{{ p.name }}</button>
-      <button
-        v-if="remoteMobileEnabled"
-        class="mobile-nav-link"
-        @click="router.push('/remote')"
-      >Remote</button>
-    </nav>
-    <div v-if="error" class="mobile-error">{{ error }}</div>
-    <div v-else class="mobile-cards">
-      <div
-        v-for="card in mobileCards"
-        :key="card._idx"
-        class="mobile-card-wrapper"
-        :style="(card.type === 'url' || card.type === 'notification')
-          ? { height: '220px' }
-          : card.type === 'weather'
-          ? { height: '225px' }
-          : card.type === 'camera'
-          ? { height: '224px' }
-          : card.type === 'entities'
-          ? { height: '204px' }
-          : card.type === 'grid'
-          ? { height: gridCardHeight(card) + 'px' }
-          : { aspectRatio: `${cardMaxWidth(card)} / ${card.type === 'pizza' ? cardHeight(card) * 2 : cardHeight(card)}` }"
-      >
-        <component :is="cardComponent(card.type)" :card="card" :mobile="true" />
+    <!-- Full-page IR remote -->
+    <IrRemoteOverlay
+      v-if="mobileRemote"
+      :device="mobileRemote"
+      :fullpage="true"
+      @close="mobileRemote = null"
+    />
+
+    <template v-else>
+      <nav class="mobile-nav">
+        <button
+          v-for="p in mobilePages"
+          :key="p.path"
+          class="mobile-nav-link"
+          :class="{ 'mobile-nav-link--active': p.path === activePath }"
+          @click="setActive(p)"
+        >{{ p.name }}</button>
+        <button
+          v-if="remoteMobileEnabled"
+          class="mobile-nav-link"
+          @click="router.push('/remote')"
+        >Remote</button>
+      </nav>
+      <div v-if="error" class="mobile-error">{{ error }}</div>
+      <div v-else class="mobile-cards">
+        <div
+          v-for="card in mobileCards"
+          :key="card._idx"
+          class="mobile-card-wrapper"
+          :style="(card.type === 'url' || card.type === 'notification')
+            ? { height: '220px' }
+            : card.type === 'weather'
+            ? { height: '225px' }
+            : card.type === 'camera'
+            ? { height: '224px' }
+            : card.type === 'entities'
+            ? { height: '204px' }
+            : card.type === 'grid'
+            ? { height: gridCardHeight(card) + 'px' }
+            : { aspectRatio: `${cardMaxWidth(card)} / ${card.type === 'pizza' ? cardHeight(card) * 2 : cardHeight(card)}` }"
+        >
+          <component
+            :is="cardComponent(card.type)"
+            :card="card"
+            :mobile="true"
+            @open-remote="mobileRemote = $event"
+          />
+        </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -65,11 +80,14 @@ import WledCard from '../components/cards/WledCard.vue';
 import WledConfigCard from '../components/cards/WledConfigCard.vue';
 import ScenesCard from '../components/cards/ScenesCard.vue';
 import ThemeCard from '../components/cards/ThemeCard.vue';
+import IrReceiverCard from '../components/cards/IrReceiverCard.vue';
+import IrRemoteOverlay from '../components/IrRemoteOverlay.vue';
 
 const route = useRoute();
 const router = useRouter();
 const allPages = ref([]);
 const remoteMobileEnabled = ref(localStorage.getItem('remote_mobile_enabled') === 'true');
+const mobileRemote = ref(null);
 const activePath = ref('/' + route.params.slug);
 const error = ref('');
 
@@ -80,6 +98,7 @@ const typeMap = {
   weather: WeatherCard, entities: EntitiesCard,
   musicassistant: MusicAssistantCard, recipe: RecipeCard, pizza: PizzaCard, url: UrlCard, notification: NotificationCard,
   machine: MachineCard, tv: TvCard, color: ColorCard, wled: WledCard, wledconfig: WledConfigCard, wiim: WiimCard, scenes: ScenesCard, theme: ThemeCard,
+  irreceiver: IrReceiverCard,
 };
 
 function cardComponent(type) {

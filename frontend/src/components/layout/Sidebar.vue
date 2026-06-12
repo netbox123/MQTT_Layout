@@ -6,7 +6,7 @@
       </button>
       <div class="sidebar-brand" @click="reloadPage" style="cursor:pointer">
         <svg class="mosquitto-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path :d="mdiHomeAssistant" fill="#18BCF2" />
+          <path :d="mdiHomeAssistant" fill="#3b82f6" />
         </svg>
         <span class="sidebar-title">Home Assistant</span>
       </div>

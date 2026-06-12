@@ -18,6 +18,8 @@
         <button v-if="editing && card.type === 'url'" class="card-url-add-btn" title="Add link" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing && card.type === 'color'" class="card-url-add-btn" title="Add preset" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing && card.type === 'wledconfig'" class="card-url-add-btn" title="Add device" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
+        <button v-if="editing && card.type === 'irtransmitter'" class="card-url-add-btn" title="Add transmitter" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
+        <button v-if="editing && card.type === 'irreceiver'" class="card-url-add-btn" title="Add device" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing && card.type === 'scenes'" class="card-url-add-btn" title="Add scene" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing && card.type === 'theme'" class="card-url-add-btn" title="Add theme" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing" class="card-edit-btn" title="Edit card" @click.stop="openEdit(i)">✎</button>
@@ -149,6 +151,8 @@ import WledConfigCard from '../components/cards/WledConfigCard.vue';
 import WiimCard from '../components/cards/WiimCard.vue';
 import ScenesCard from '../components/cards/ScenesCard.vue';
 import ThemeCard from '../components/cards/ThemeCard.vue';
+import IrTransmitterCard from '../components/cards/IrTransmitterCard.vue';
+import IrReceiverCard from '../components/cards/IrReceiverCard.vue';
 import CardEditModal from '../components/dialogs/CardEditModal.vue';
 import GridCardEditModal from '../components/dialogs/GridCardEditModal.vue';
 import EntitiesCardEditModal from '../components/dialogs/EntitiesCardEditModal.vue';
@@ -358,7 +362,9 @@ const cardDefaults = {
   url: { type: 'url', title: 'Links', position: { x: 1, y: 1, w: 2, h: 3 } },
   color: { type: 'color', position: { x: 1, y: 1, w: 2, h: 3 } },
   wled: { type: 'wled', title: 'WLED', devices: [], position: { x: 1, y: 1, w: 2, h: 3 } },
-  wledconfig: { type: 'wledconfig', title: 'WLED Devices', position: { x: 1, y: 1, w: 2, h: 3 } },
+  wledconfig:    { type: 'wledconfig',    title: 'WLED Devices',     position: { x: 1, y: 1, w: 2, h: 3 } },
+  irtransmitter: { type: 'irtransmitter', title: 'IR Transmitters',  position: { x: 1, y: 1, w: 2, h: 3 } },
+  irreceiver:    { type: 'irreceiver',    title: 'IR Devices', config_key: 'default', position: { x: 1, y: 1, w: 2, h: 3 } },
   wiim: { type: 'wiim', title: 'WiiM Pro', ip: '192.168.0.22', position: { x: 1, y: 1, w: 3, h: 2 } },
   scenes: { type: 'scenes', title: 'New Scenes', position: { x: 1, y: 1, w: 2, h: 3 } },
   theme: { type: 'theme', title: 'Themes', position: { x: 1, y: 1, w: 2, h: 3 } },
@@ -421,6 +427,8 @@ const typeMap = {
   wiim: WiimCard,
   scenes: ScenesCard,
   theme: ThemeCard,
+  irtransmitter: IrTransmitterCard,
+  irreceiver: IrReceiverCard,
 };
 
 function cardComponent(type) {

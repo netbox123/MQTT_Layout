@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Living room IR",
+    "id": "IR1",
+    "ip": "192.168.0.209"
+  },
+  {
+    "name": "Bedroom IR",
+    "id": "ir2",
+    "ip": "192.168.0.210"
+  }
+]

@@ -21,6 +21,7 @@ A local-first, MQTT-driven home automation dashboard built with **Vue 3 + Expres
 - **Mobile layout** — dedicated responsive view at `/m/<page-slug>` with per-card mobile visibility and ordering
 - **Edit mode** — all cards support drag-and-drop repositioning and grid resizing directly in the browser; add, remove and configure cards without touching config files
 - **Philips TV remote** — dedicated full-screen remote page at `/remote`, optimised for iPhone (no sidebar, large touch targets)
+- **IR remote system** — register ESP32 IR transceivers as transmitters, then register TV / soundbar devices against them; learn codes directly from physical remotes via MQTT; open styled remotes as an overlay on desktop or full-screen on mobile
 - **WLED integration** — register WLED dimmers via the `/wled` device page; control them with the WLED card; color presets managed via the Color card
 - **Theme system** — create, edit and apply custom UI themes; live preview while editing colors and fonts; themes persist across sessions
 - **Caddy reverse proxy** — HTTPS with basic auth, WebSocket support
@@ -106,6 +107,8 @@ These are served at `/sounds/` and used by the notification system.
 | `wiim` | WiiM / LinkPlay streamer — volume slider and input selector with custom labels |
 | `scenes` | Lighting scene sequencer — play ordered sequences of dimmer, fade, random and HA light steps |
 | `theme` | UI theme manager — create and apply custom color and font themes with live preview |
+| `irtransmitter` | ESP32 IR transmitter registry — add, edit and delete transmitters (id, name, IP) |
+| `irreceiver` | IR device registry — register TVs and soundbars, assign a transmitter, learn commands from a physical remote, open a styled remote control |
 
 ## Site Dashboard Integration
 
@@ -143,6 +146,8 @@ Each event links to a notification rule that defines the title, message, and sou
 | `config/notifications.json` | Notification history log (auto-generated) |
 | `config/notification_events.json` | MQTT trigger rules (auto-generated) |
 | `config/scenes.json` | Lighting scenes (auto-generated via UI) |
+| `config/ir_devices.json` | Registered ESP32 IR transmitters (auto-generated via UI) |
+| `config/ir_receivers.json` | IR device configs — commands per device keyed by `config_key` (auto-generated via UI) |
 
 ## WLED Integration
 
@@ -226,6 +231,56 @@ The **Theme card** lets you create and manage custom UI themes. Each theme defin
 - **Revert on cancel** — closing the dialog without saving restores the previous appearance
 - **Persist on apply** — applied theme is saved to `localStorage` and restored on next load with no flash
 - **Fonts bundled** — Inter, Roboto, Open Sans, Lato, Nunito and Ubuntu are served directly from the app with no CDN dependency
+
+## IR Remote System
+
+Control TVs and soundbars via ESP32 IR transceivers — no cloud, no app, just MQTT.
+
+### Hardware
+
+Any ESP32 with an IR LED and IR receiver, flashed with ESPHome (or custom firmware). The module listens on two MQTT topics:
+
+| Topic | Direction | Payload |
+|---|---|---|
+| `ir/{id}/transmit` | Dashboard → ESP32 | JSON IR code (e.g. `{"protocol":"NEC","address":1,"command":42}`) |
+| `ir/{id}/learn` | Dashboard → ESP32 | Any payload — starts capture mode |
+| `ir/{id}/learned` | ESP32 → Dashboard | JSON IR code of the captured signal |
+
+### Setup
+
+**Step 1 — Register transmitters**
+
+Add an `irtransmitter` card to any dashboard page. Click **+** to register each ESP32 module with a name and ID. The ID must match the `{id}` used in the MQTT topics above.
+
+**Step 2 — Register IR devices**
+
+Add an `irreceiver` card (give it a unique `config_key` in the card settings). Click **+** to register a device (TV or soundbar):
+
+- **Name** — display name (e.g. "Living Room TV")
+- **Type** — `philips_tv`, `lg_tv`, or `soundbar`
+- **Transmitter** — select which ESP32 will send IR to this device
+- **Commands** — one row per button; enter a code manually or click **Learn** to capture it from the original remote
+
+**Learn flow:**
+1. Click **Learn** next to a command button
+2. The button pulses — point the original remote at the ESP32 and press the button
+3. The dashboard publishes to `ir/{id}/learn`, the ESP32 captures the signal and publishes to `ir/{id}/learned`
+4. The code auto-fills; the pulse stops
+
+### Using the remote
+
+Click **Remote** on any registered device to open the remote control:
+
+- **Desktop** — opens as a centered overlay with a dark styled shell
+- **Mobile** — opens full-screen (tap **← Back** to return)
+
+### Supported remote layouts
+
+| Type | Buttons |
+|---|---|
+| `philips_tv` | Power, play controls, source, D-pad + OK, back/options, vol/home, color buttons |
+| `lg_tv` | Power, source/mute/settings, D-pad + OK, back/home/info, vol/ch, play controls |
+| `soundbar` | Power, volume up/down, mute |
 
 ## License
 
