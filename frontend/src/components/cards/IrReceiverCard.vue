@@ -7,8 +7,12 @@
     <div v-if="!devices.length" class="empty-msg">No devices configured</div>
     <div v-else class="device-list">
       <div v-for="d in devices" :key="d.id" class="device-row">
+        <svg viewBox="0 0 24 24" fill="currentColor" class="row-icon"><path :d="TYPE_ICONS[d.type] ?? mdiTelevision" /></svg>
         <span class="device-name">{{ d.name }}</span>
         <span class="device-type-badge">{{ TYPE_LABELS[d.type] ?? d.type }}</span>
+        <button class="power-btn" :disabled="!d.commands?.power" @click.stop="sendPower(d)" title="Power">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:12px;height:12px"><path :d="mdiPower" /></svg>
+        </button>
         <button class="remote-btn" @click="openRemote(d)">Remote</button>
         <button v-if="editing" class="row-edit-btn" @click.stop="openEdit(d)">✎</button>
       </div>
@@ -58,7 +62,7 @@
                 class="field-input cmd-input"
                 :value="codeDisplay(dialog.commands[cmd.key])"
                 placeholder="not learned"
-                readonly
+                @change="setCode(cmd.key, $event.target.value)"
               />
               <button
                 class="learn-btn"
@@ -89,7 +93,7 @@ export const icon = '📺';
 
 <script setup>
 import { ref, inject, computed, onMounted, onUnmounted, watch } from 'vue';
-import { mdiRemote } from '@mdi/js';
+import { mdiRemote, mdiTelevision, mdiSpeaker, mdiPower } from '@mdi/js';
 import { useMqtt } from '../../composables/useMqtt.js';
 import { useMqttStore } from '../../stores/mqttStore.js';
 import IrRemoteOverlay from '../IrRemoteOverlay.vue';
@@ -103,6 +107,13 @@ const mqttStore = useMqttStore();
 const configKey = computed(() => props.card.config_key || props.card.title || 'default');
 
 const TYPE_LABELS = { philips_tv: 'Philips TV', lg_tv: 'LG TV', soundbar: 'Soundbar' };
+const TYPE_ICONS  = { philips_tv: mdiTelevision, lg_tv: mdiTelevision, soundbar: mdiSpeaker };
+
+function sendPower(d) {
+  const cmd = d.commands?.power;
+  if (!cmd || !d.transmitter_id) return;
+  publish(`ir/${d.transmitter_id}/transmit`, JSON.stringify(cmd));
+}
 
 const COMMANDS = {
   philips_tv: [
@@ -137,6 +148,13 @@ function codeDisplay(v) {
   if (typeof v === 'object') return v.protocol ? `${v.protocol} ${v.code}` : JSON.stringify(v);
   return String(v);
 }
+function setCode(cmdKey, raw) {
+  if (!dialog.value) return;
+  const s = raw.trim();
+  if (!s) { delete dialog.value.commands[cmdKey]; return; }
+  try { dialog.value.commands[cmdKey] = JSON.parse(s); }
+  catch { dialog.value.commands[cmdKey] = s; }
+}
 
 // ── Devices ───────────────────────────────────────────────────────────────────
 const devices = ref([]);
@@ -144,7 +162,11 @@ const devices = ref([]);
 async function fetchDevices() {
   try {
     const res = await fetch(`/api/ir-receivers/${encodeURIComponent(configKey.value)}`);
-    if (res.ok) devices.value = await res.json();
+    if (res.ok) {
+      const all = await res.json();
+      const hidden = new Set(props.card.hidden_receiver_ids ?? []);
+      devices.value = hidden.size === 0 ? all : all.filter(d => !hidden.has(d.id));
+    }
   } catch { /* ignore */ }
 }
 
@@ -165,6 +187,8 @@ async function fetchTransmitters() {
     if (res.ok) transmitters.value = await res.json();
   } catch { /* ignore */ }
 }
+
+watch(() => props.card.hidden_receiver_ids, fetchDevices, { deep: true });
 
 onMounted(() => {
   fetchDevices();
@@ -210,15 +234,28 @@ function toggleLearn(cmdKey) {
   if (!tid) { dialog.value.error = 'Select a transmitter first'; return; }
   dialog.value.error = '';
   learnTarget.value = cmdKey;
-  publish(`ir/${tid}/learn`, cmdKey);
-  learnTimer = setTimeout(() => stopLearn(), 15000);
+  const payload = JSON.stringify({ cmd: cmdKey, device: dialog.value.name });
+  publish(`ir/${tid}/learn`, payload);
+  learnTimer = setTimeout(() => stopLearn(), 33000);
 }
 function stopLearn() { clearTimeout(learnTimer); learnTarget.value = null; }
+
+watch(() => dialog.value?.transmitter_id, async (newVal, oldVal) => {
+  if (!dialog.value || !oldVal || newVal === oldVal) return;
+  dialog.value.commands = {};
+  const { isNew, error, ...data } = dialog.value;
+  if (data.name.trim()) {
+    const updated = isNew
+      ? [...devices.value, data]
+      : devices.value.map(d => d.id === data.id ? data : d);
+    await patchDevices(updated);
+  }
+});
 
 watch(() => {
   const tid = dialog.value?.transmitter_id;
   return tid ? mqttStore.getValue(`ir/${tid}/learned`) : null;
-}, (val) => {
+}, async (val) => {
   if (!val || !learnTarget.value || !dialog.value) return;
   try {
     dialog.value.commands[learnTarget.value] = typeof val === 'string' ? JSON.parse(val) : val;
@@ -226,6 +263,13 @@ watch(() => {
     dialog.value.commands[learnTarget.value] = val;
   }
   stopLearn();
+  const { isNew, error, ...data } = dialog.value;
+  if (data.name.trim()) {
+    const updated = isNew
+      ? [...devices.value, data]
+      : devices.value.map(d => d.id === data.id ? data : d);
+    await patchDevices(updated);
+  }
 });
 
 // ── Save / delete ─────────────────────────────────────────────────────────────
@@ -269,11 +313,20 @@ defineExpose({ openAdd });
   padding: 0.3rem 0.65rem; white-space: nowrap; overflow: hidden;
 }
 .device-row:hover { background: var(--bg-card-hover); }
+.row-icon { width: 12px; height: 12px; color: var(--text-muted); flex-shrink: 0; }
 .device-name { flex: 1; font-size: 0.82rem; color: #e8eaf0; overflow: hidden; text-overflow: ellipsis; }
 .device-type-badge {
   font-size: 0.65rem; color: var(--text-muted); background: #1e2840;
   border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; flex-shrink: 0;
 }
+.power-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0;
+  border: 1px solid #5090d0; background: transparent; color: #5090d0;
+  cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+.power-btn:hover:not(:disabled) { background: #5090d0; color: #fff; }
+.power-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .remote-btn {
   font-size: 0.7rem; font-family: inherit; font-weight: 600;
   padding: 0.2rem 0.55rem; border-radius: 5px;

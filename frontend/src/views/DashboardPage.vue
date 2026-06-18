@@ -96,6 +96,14 @@
       @cancel="editingCardIndex = null"
       @delete="deleteCard"
     />
+    <IrReceiverCardEditModal
+      v-if="editingCardIndex !== null && currentEditCard?.type === 'irreceiver'"
+      :card="currentEditCard"
+      :isNew="editingCardIndex === 'new'"
+      @save="handleSave"
+      @cancel="editingCardIndex = null"
+      @delete="deleteCard"
+    />
     <ScenesCardEditModal
       v-if="editingCardIndex !== null && currentEditCard?.type === 'scenes'"
       :card="currentEditCard"
@@ -113,7 +121,7 @@
       @delete="deleteCard"
     />
     <CardEditModal
-      v-if="editingCardIndex !== null && currentEditCard?.type !== 'grid' && currentEditCard?.type !== 'entities' && currentEditCard?.type !== 'musicassistant' && currentEditCard?.type !== 'notification' && currentEditCard?.type !== 'machine' && currentEditCard?.type !== 'tv' && currentEditCard?.type !== 'wled' && currentEditCard?.type !== 'wiim' && currentEditCard?.type !== 'scenes' && !(currentEditCard?.type === 'url' && editingCardIndex !== 'new') && !(currentEditCard?.type === 'color' && editingCardIndex !== 'new')"
+      v-if="editingCardIndex !== null && currentEditCard?.type !== 'grid' && currentEditCard?.type !== 'entities' && currentEditCard?.type !== 'musicassistant' && currentEditCard?.type !== 'notification' && currentEditCard?.type !== 'machine' && currentEditCard?.type !== 'tv' && currentEditCard?.type !== 'wled' && currentEditCard?.type !== 'wiim' && currentEditCard?.type !== 'scenes' && currentEditCard?.type !== 'irreceiver' && !(currentEditCard?.type === 'url' && editingCardIndex !== 'new') && !(currentEditCard?.type === 'color' && editingCardIndex !== 'new')"
       :card="currentEditCard"
       :isNew="editingCardIndex === 'new'"
       :title="currentEditCard?.type === 'weather' ? (editingCardIndex === 'new' ? 'New Weather Card' : 'Edit Weather Card') : currentEditCard?.type === 'camera' ? (editingCardIndex === 'new' ? 'New Camera Card' : 'Edit Camera Card') : currentEditCard?.type === 'webpage' ? (editingCardIndex === 'new' ? 'New Webpage Card' : 'Edit Webpage Card') : currentEditCard?.type === 'pizza' ? (editingCardIndex === 'new' ? 'New Pizza Card' : 'Edit Pizza Card') : currentEditCard?.type === 'url' ? (editingCardIndex === 'new' ? 'New Url Card' : 'Edit Url Card') : currentEditCard?.type === 'machine' ? (editingCardIndex === 'new' ? 'New Machines Card' : 'Edit Machines') : currentEditCard?.type === 'tv' ? (editingCardIndex === 'new' ? 'New TVs Card' : 'Edit TVs') : currentEditCard?.type === 'wledconfig' ? (editingCardIndex === 'new' ? 'New WLED Devices Card' : 'Edit WLED Devices') : ''"
@@ -164,6 +172,7 @@ import MusicAssistantCardEditModal from '../components/dialogs/MusicAssistantCar
 import NotificationCardEditModal from '../components/dialogs/NotificationCardEditModal.vue';
 import DeviceCardEditModal from '../components/dialogs/DeviceCardEditModal.vue';
 import ScenesCardEditModal from '../components/dialogs/ScenesCardEditModal.vue';
+import IrReceiverCardEditModal from '../components/dialogs/IrReceiverCardEditModal.vue';
 import CardPickerModal from '../components/dialogs/CardPickerModal.vue';
 
 const props = defineProps({

@@ -7,11 +7,13 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { loadAllPageConfigs } from './configLoader.js';
+import mqtt from 'mqtt';
 import { createMqttClient, loadMqttConfig, saveMqttConfig } from './mqttClient.js';
 import { createWsServer } from './wsServer.js';
 import net from 'net';
 import { handleCameraStream, handleCameraSnapshot } from './cameraProxy.js';
 import recipeRoutes from './recipeRoutes.js';
+import { startBroadlinkBridge } from './broadlinkBridge.js';
 
 // Kill any ffmpeg processes left over from a previous server session
 try {
@@ -1010,6 +1012,37 @@ scheduleTimeTrigger();
 // Create MQTT client and wire it to the WebSocket server
 const mqttClient = createMqttClient(pageConfigs, wsServer, checkEventTriggers);
 
+// Victron topic republisher: FlashMQ bridges N/# to .20 without prefix.
+// Re-publish as victron/N/# so HA integrations need no changes.
+// Also forward victron/R/# → R/# so HA keepalives reach the FlashMQ bridge.
+(function startVictronRepublisher() {
+  const cfg = loadMqttConfig();
+  const brokerUrl = cfg.broker_url || 'mqtt://localhost:1883';
+  const client = mqtt.connect(brokerUrl, {
+    clientId: 'victron-republisher',
+    username: cfg.username,
+    password: cfg.password,
+    reconnectPeriod: 5000,
+    clean: true,
+  });
+  client.on('connect', () => {
+    console.log('[Victron] Republisher connected');
+    client.subscribe(['N/#', 'victron/R/#'], (err) => {
+      if (err) console.error('[Victron] Subscribe error:', err.message);
+    });
+  });
+  client.on('message', (topic, payload) => {
+    if (topic.startsWith('N/')) {
+      client.publish('victron/' + topic, payload, { retain: false });
+    } else if (topic.startsWith('victron/R/')) {
+      client.publish(topic.slice('victron/'.length), payload, { retain: false });
+    }
+  });
+  client.on('error', (err) => console.error('[Victron] Republisher error:', err.message));
+})();
+
+startBroadlinkBridge(loadMqttConfig(), loadHaConfig());
+
 function sceneTriggerTopics() {
   return [...new Set(loadScenes().filter(s => s.trigger === 'mqtt' && s.trigger_mqtt_topic).map(s => s.trigger_mqtt_topic))];
 }
@@ -1021,6 +1054,7 @@ setTimeout(() => {
   const sceneTopics = sceneTriggerTopics();
   if (sceneTopics.length) mqttClient.subscribeTopics(sceneTopics);
   if (loadWledDevices().length) mqttClient.subscribeTopics(['wled/#']);
+  mqttClient.subscribeTopics(['ir/#']);
 }, 2000);
 
 const PORT = process.env.SERVER_PORT || 3000;

@@ -1,12 +1,12 @@
 [
   {
     "name": "Living room IR",
-    "id": "IR1",
-    "ip": "192.168.0.209"
+    "id": "rm-mini",
+    "ip": "192.168.0.9"
   },
   {
-    "name": "Bedroom IR",
-    "id": "ir2",
-    "ip": "192.168.0.210"
+    "name": "IR_Transmitter 1",
+    "id": "ir-transmitter1",
+    "ip": "192.168.0.56"
   }
 ]
