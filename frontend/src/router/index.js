@@ -3,11 +3,13 @@ import DashboardPage from '../views/DashboardPage.vue';
 import BatteryPage from '../views/BatteryPage.vue';
 import MobilePage from '../views/MobilePage.vue';
 import RemotePage from '../views/RemotePage.vue';
+import RemotesTabPage from '../views/RemotesTabPage.vue';
 import WledPage from '../views/WledPage.vue';
 import NotFound from '../views/NotFound.vue';
 
 const PAGE_COMPONENTS = {
   battery: BatteryPage,
+  remotes: RemotesTabPage,
 };
 
 export function createPageRoute(config) {

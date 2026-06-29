@@ -5,8 +5,13 @@
     "ip": "192.168.0.9"
   },
   {
-    "name": "IR_Transmitter 1",
-    "id": "ir-transmitter1",
+    "name": "IR 56",
+    "id": "ir-56",
     "ip": "192.168.0.56"
+  },
+  {
+    "name": "IR 47",
+    "id": "ir-47",
+    "ip": "192.168.0.47"
   }
 ]

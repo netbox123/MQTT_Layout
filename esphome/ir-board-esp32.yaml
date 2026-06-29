@@ -1,0 +1,99 @@
+esphome:
+  name: ir-XX          # change to ir-47, ir-48, etc.
+  friendly_name: IR_XX
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  use_address: "192.168.0.XX"   # set fixed IP
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Ir-XX Fallback Hotspot"
+    password: !secret ap_password
+
+globals:
+  - id: ir_payload
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: publish_pending
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+mqtt:
+  id: mqtt_client
+  broker: 192.168.0.20        # MQTT broker IP
+  port: 1883
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  on_message:
+    - topic: ir/ir-XX/transmit  # change XX to match board name
+      then:
+        - lambda: id(ir_payload) = x;
+        - remote_transmitter.transmit_raw:
+            code: !lambda |-
+              std::vector<int32_t> timings;
+              const char *p = id(ir_payload).c_str();
+              while (*p && *p != '[') p++;
+              if (*p) p++;
+              while (*p && *p != ']') {
+                while (*p == ' ' || *p == ',') p++;
+                if (*p == ']' || *p == '\0') break;
+                char *end;
+                long val = strtol(p, &end, 10);
+                if (end != p) { timings.push_back((int32_t)val); p = end; }
+                else p++;
+              }
+              return timings;
+            carrier_frequency: 38kHz
+
+# Publish received IR codes every 100 ms (deferred to avoid MQTT reentrancy issues)
+interval:
+  - interval: 100ms
+    then:
+      - lambda: |-
+          if (id(publish_pending)) {
+            id(publish_pending) = false;
+            id(mqtt_client).publish("ir/ir-XX/learned", id(ir_payload));
+          }
+
+remote_transmitter:
+  id: ir_tx
+  pin: GPIO4
+  carrier_duty_percent: 50%
+
+remote_receiver:
+  pin:
+    number: GPIO14
+    inverted: true
+    mode:
+      input: true
+      pullup: true
+  tolerance: 25%
+  on_raw:
+    - lambda: |-
+        std::string p = "[";
+        for (size_t i = 0; i < x.size(); i++) {
+          if (i > 0) p += ",";
+          char buf[12];
+          snprintf(buf, sizeof(buf), "%d", (int32_t)x[i]);
+          p += buf;
+        }
+        p += "]";
+        id(ir_payload) = p;
+        id(publish_pending) = true;

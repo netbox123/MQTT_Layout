@@ -52,6 +52,8 @@
       <button class="rkey" @click="$emit('send', 'play_pause')" title="Play/Pause">⏯</button>
       <button class="rkey" @click="$emit('send', 'next')" title="Next">⏭</button>
     </div>
+
+    <slot />
   </div>
 </template>
 
@@ -61,5 +63,4 @@ defineEmits(['send']);
 
 <style scoped>
 @import './remote-shared.css';
-.r-brand { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.15em; color: var(--text-muted); }
 </style>

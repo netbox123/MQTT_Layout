@@ -1,5 +1,5 @@
 <template>
-  <div class="remote-shell">
+  <div class="remote">
     <div class="r-brand">PHILIPS</div>
 
     <div class="r-center">
@@ -61,6 +61,8 @@
       <button class="rkey rkey--yellow" @click="$emit('send', 'yellow')"></button>
       <button class="rkey rkey--blue"   @click="$emit('send', 'blue')"></button>
     </div>
+
+    <slot />
   </div>
 </template>
 
@@ -69,114 +71,13 @@ defineEmits(['send']);
 </script>
 
 <style scoped>
-.remote-shell {
-  width: 270px;
-  background: #18181c;
-  border-radius: 35px 35px 28px 28px;
-  padding: 20px 20px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
-    inset 0 -2px 0 rgba(0,0,0,0.5),
-    0 24px 64px rgba(0,0,0,0.9),
-    0 0 0 1px #2a2a32;
-}
+@import './remote-shared.css';
 
-.rkey {
-  background: #252528;
-  border: 1px solid #38383e;
-  border-bottom: 2px solid #111;
-  border-radius: 10px;
-  color: #bbb;
-  font-size: 1rem;
-  font-family: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  height: 43px;
-  width: 55px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  user-select: none;
-  transition: background 0.08s, color 0.08s;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-.rkey:hover  { background: #2e2e34; color: #ddd; }
-.rkey:active { background: #1a1a1e; border-bottom-width: 1px; transform: translateY(1px); color: #fff; }
-
-.r-brand {
-  text-align: center;
-  font-size: 0.73rem;
-  font-weight: 700;
-  letter-spacing: 0.3em;
-  color: #3a3a48;
-  margin-bottom: -4px;
-}
-
-.r-center { display: flex; justify-content: center; }
-
-.rkey--power {
-  width: 55px; height: 55px;
-  border-radius: 50%;
-  background: #2a1015;
-  border-color: #5c1a24;
-  border-bottom-color: #1a080c;
-  color: #e05060;
-  font-size: 1.4rem;
-}
-.rkey--power:hover { background: #3a1520; color: #ff6070; }
-
-.r-row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.r-row3 .rkey { width: 100%; }
 .r-dpad-group { display: flex; flex-direction: column; }
 .r-dpad-group .r-dpad { margin-top: -21px; }
 .r-block { display: flex; flex-direction: column; gap: 8px; }
 .r-block--overlap { margin-top: -33px; }
-
-.r-divider {
-  height: 1px;
-  background: linear-gradient(to right, transparent, #2e2e3a, transparent);
-  margin: -1px 0;
-}
-
-.rkey--fn {
-  font-size: 0.73rem;
-  letter-spacing: 0.04em;
-  font-weight: 700;
-  color: #999;
-}
-
-.rkey--home { font-size: 2rem; }
 .home-icon { display: inline-block; transform: translateY(-4px); }
-
-.r-dpad {
-  display: grid;
-  grid-template-columns: repeat(3, 55px);
-  gap: 5px;
-  justify-content: center;
-  align-items: center;
-}
-.r-dpad span { display: block; height: 43px; }
-
-.r-arrow { height: 43px; font-size: 0.81rem; }
-
-.r-ok {
-  width: 55px; height: 55px;
-  border-radius: 50% !important;
-  background: #1c2638;
-  border-color: #2a5090;
-  border-bottom-color: #0e1830;
-  color: #5090d0;
-  font-weight: 700;
-  font-size: 0.9rem;
-}
-.r-ok:hover { background: #223348; color: #60a8e8; }
-
-.r-colors { display: flex; justify-content: space-around; align-items: center; }
 
 .rkey--red    { width: 43px; height: 20px; border-radius: 10px; background: #7a1515; border-color: #9a2020; border-bottom-color: #4a0c0c; font-size: 0; }
 .rkey--green  { width: 43px; height: 20px; border-radius: 10px; background: #156015; border-color: #207820; border-bottom-color: #0c3a0c; font-size: 0; }

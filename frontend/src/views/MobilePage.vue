@@ -24,6 +24,7 @@
         >Remote</button>
       </nav>
       <div v-if="error" class="mobile-error">{{ error }}</div>
+      <RemotesTabPage v-else-if="page?.page_type === 'remotes'" :page-config="page" :embedded="true" />
       <div v-else class="mobile-cards">
         <div
           v-for="card in mobileCards"
@@ -82,6 +83,7 @@ import ScenesCard from '../components/cards/ScenesCard.vue';
 import ThemeCard from '../components/cards/ThemeCard.vue';
 import IrReceiverCard from '../components/cards/IrReceiverCard.vue';
 import IrRemoteOverlay from '../components/IrRemoteOverlay.vue';
+import RemotesTabPage from './RemotesTabPage.vue';
 
 const route = useRoute();
 const router = useRouter();

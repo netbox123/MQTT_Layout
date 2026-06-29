@@ -7,12 +7,9 @@
     <div v-if="!devices.length" class="empty-msg">No devices configured</div>
     <div v-else class="device-list">
       <div v-for="d in devices" :key="d.id" class="device-row">
-        <svg viewBox="0 0 24 24" fill="currentColor" class="row-icon"><path :d="TYPE_ICONS[d.type] ?? mdiTelevision" /></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor" class="row-icon"><path :d="typeIcon(d.type)" /></svg>
         <span class="device-name">{{ d.name }}</span>
-        <span class="device-type-badge">{{ TYPE_LABELS[d.type] ?? d.type }}</span>
-        <button class="power-btn" :disabled="!d.commands?.power" @click.stop="sendPower(d)" title="Power">
-          <svg viewBox="0 0 24 24" fill="currentColor" style="width:12px;height:12px"><path :d="mdiPower" /></svg>
-        </button>
+        <button class="power-btn" :class="{ 'power-btn--no-cmd': !d.commands?.power }" @click.stop="sendPower(d)" title="Power">Power</button>
         <button class="remote-btn" @click="openRemote(d)">Remote</button>
         <button v-if="editing" class="row-edit-btn" @click.stop="openEdit(d)">✎</button>
       </div>
@@ -38,9 +35,7 @@
 
           <label class="field-label">Type</label>
           <select class="field-input" v-model="dialog.type">
-            <option value="philips_tv">Philips TV</option>
-            <option value="lg_tv">LG TV</option>
-            <option value="soundbar">Soundbar</option>
+            <option v-for="rt in remoteTypes" :key="rt.type" :value="rt.type">{{ rt.name }}</option>
           </select>
 
           <label class="field-label">Transmitter</label>
@@ -93,7 +88,7 @@ export const icon = '📺';
 
 <script setup>
 import { ref, inject, computed, onMounted, onUnmounted, watch } from 'vue';
-import { mdiRemote, mdiTelevision, mdiSpeaker, mdiPower } from '@mdi/js';
+import { mdiRemote, mdiTelevision, mdiSpeaker } from '@mdi/js';
 import { useMqtt } from '../../composables/useMqtt.js';
 import { useMqttStore } from '../../stores/mqttStore.js';
 import IrRemoteOverlay from '../IrRemoteOverlay.vue';
@@ -104,45 +99,37 @@ const editing = inject('editing', ref(false));
 const { publish } = useMqtt();
 const mqttStore = useMqttStore();
 
-const configKey = computed(() => props.card.config_key || props.card.title || 'default');
+const patchCard = inject('patchCard', null);
 
-const TYPE_LABELS = { philips_tv: 'Philips TV', lg_tv: 'LG TV', soundbar: 'Soundbar' };
-const TYPE_ICONS  = { philips_tv: mdiTelevision, lg_tv: mdiTelevision, soundbar: mdiSpeaker };
+const TYPE_ICONS = { soundbar: mdiSpeaker };
+
+const remoteTypes   = ref([]);   // [{ type, name, brand }]
+const remoteKeys    = ref({});   // { philips_tv: [{key, label}], ... }
+
+const typeLabel = (type) => remoteTypes.value.find(r => r.type === type)?.name ?? type;
+const typeIcon  = (type) => TYPE_ICONS[type] ?? mdiTelevision;
+
+function commandsForType(type) {
+  return remoteKeys.value[type] ?? remoteKeys.value[remoteTypes.value[0]?.type] ?? [];
+}
+
+async function loadRemoteTypes() {
+  try {
+    const res = await fetch('/api/remotes');
+    if (!res.ok) return;
+    remoteTypes.value = await res.json();
+    await Promise.all(remoteTypes.value.map(async rt => {
+      const r = await fetch(`/api/remotes/${rt.type}`);
+      if (r.ok) remoteKeys.value[rt.type] = (await r.json()).keys ?? [];
+    }));
+  } catch { /* ignore */ }
+}
 
 function sendPower(d) {
   const cmd = d.commands?.power;
   if (!cmd || !d.transmitter_id) return;
   publish(`ir/${d.transmitter_id}/transmit`, JSON.stringify(cmd));
 }
-
-const COMMANDS = {
-  philips_tv: [
-    { key: 'power', label: 'Power' }, { key: 'vol_up', label: 'Vol +' }, { key: 'vol_down', label: 'Vol -' },
-    { key: 'mute', label: 'Mute' }, { key: 'ch_up', label: 'CH +' }, { key: 'ch_down', label: 'CH -' },
-    { key: 'up', label: 'Up' }, { key: 'down', label: 'Down' }, { key: 'left', label: 'Left' },
-    { key: 'right', label: 'Right' }, { key: 'ok', label: 'OK' }, { key: 'back', label: 'Back' },
-    { key: 'home', label: 'Home' }, { key: 'source', label: 'Source' }, { key: 'info', label: 'Info' },
-    { key: 'options', label: 'Options' }, { key: 'play_pause', label: 'Play/Pause' },
-    { key: 'previous', label: 'Previous' }, { key: 'next', label: 'Next' },
-    { key: 'rewind', label: 'Rewind' }, { key: 'fast_forward', label: 'FF' }, { key: 'stop', label: 'Stop' },
-    { key: 'red', label: 'Red' }, { key: 'green', label: 'Green' }, { key: 'yellow', label: 'Yellow' }, { key: 'blue', label: 'Blue' },
-  ],
-  lg_tv: [
-    { key: 'power', label: 'Power' }, { key: 'vol_up', label: 'Vol +' }, { key: 'vol_down', label: 'Vol -' },
-    { key: 'mute', label: 'Mute' }, { key: 'ch_up', label: 'CH +' }, { key: 'ch_down', label: 'CH -' },
-    { key: 'up', label: 'Up' }, { key: 'down', label: 'Down' }, { key: 'left', label: 'Left' },
-    { key: 'right', label: 'Right' }, { key: 'ok', label: 'OK' }, { key: 'back', label: 'Back' },
-    { key: 'home', label: 'Home' }, { key: 'source', label: 'Source' }, { key: 'info', label: 'Info' },
-    { key: 'settings', label: 'Settings' }, { key: 'play_pause', label: 'Play/Pause' },
-    { key: 'previous', label: 'Previous' }, { key: 'next', label: 'Next' },
-  ],
-  soundbar: [
-    { key: 'power', label: 'Power' }, { key: 'vol_up', label: 'Vol +' },
-    { key: 'vol_down', label: 'Vol -' }, { key: 'mute', label: 'Mute' },
-  ],
-};
-
-function commandsForType(type) { return COMMANDS[type] ?? COMMANDS.philips_tv; }
 function codeDisplay(v) {
   if (!v) return '';
   if (typeof v === 'object') return v.protocol ? `${v.protocol} ${v.code}` : JSON.stringify(v);
@@ -157,26 +144,10 @@ function setCode(cmdKey, raw) {
 }
 
 // ── Devices ───────────────────────────────────────────────────────────────────
-const devices = ref([]);
-
-async function fetchDevices() {
-  try {
-    const res = await fetch(`/api/ir-receivers/${encodeURIComponent(configKey.value)}`);
-    if (res.ok) {
-      const all = await res.json();
-      const hidden = new Set(props.card.hidden_receiver_ids ?? []);
-      devices.value = hidden.size === 0 ? all : all.filter(d => !hidden.has(d.id));
-    }
-  } catch { /* ignore */ }
-}
+const devices = computed(() => props.card.receivers ?? []);
 
 async function patchDevices(list) {
-  await fetch(`/api/ir-receivers/${encodeURIComponent(configKey.value)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(list),
-  });
-  await fetchDevices();
+  if (patchCard) await patchCard(props.card, { receivers: list });
 }
 
 // ── Transmitters ──────────────────────────────────────────────────────────────
@@ -188,11 +159,9 @@ async function fetchTransmitters() {
   } catch { /* ignore */ }
 }
 
-watch(() => props.card.hidden_receiver_ids, fetchDevices, { deep: true });
-
 onMounted(() => {
-  fetchDevices();
   fetchTransmitters();
+  loadRemoteTypes();
   window.addEventListener('ir-devices-updated', fetchTransmitters);
 });
 onUnmounted(() => {
@@ -217,7 +186,7 @@ let learnTimer = null;
 function openAdd() {
   dialog.value = {
     id: Date.now().toString(36),
-    name: '', type: 'philips_tv', transmitter_id: '',
+    name: '', type: remoteTypes.value[0]?.type ?? 'philips_tv', transmitter_id: '',
     commands: {}, isNew: true, error: '',
   };
 }
@@ -254,7 +223,7 @@ watch(() => dialog.value?.transmitter_id, async (newVal, oldVal) => {
 
 watch(() => {
   const tid = dialog.value?.transmitter_id;
-  return tid ? mqttStore.getValue(`ir/${tid}/learned`) : null;
+  return tid ? mqttStore.topicValues[`ir/${tid}/learned`] ?? null : null;
 }, async (val) => {
   if (!val || !learnTarget.value || !dialog.value) return;
   try {
@@ -321,12 +290,13 @@ defineExpose({ openAdd });
 }
 .power-btn {
   display: flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0;
+  padding: 0 5px; height: 22px; border-radius: 4px; flex-shrink: 0;
   border: 1px solid #5090d0; background: transparent; color: #5090d0;
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em;
   cursor: pointer; transition: background 0.12s, color 0.12s;
 }
-.power-btn:hover:not(:disabled) { background: #5090d0; color: #fff; }
-.power-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.power-btn:hover { background: #5090d0; color: #fff; }
+.power-btn--no-cmd { opacity: 0.3; }
 .remote-btn {
   font-size: 0.7rem; font-family: inherit; font-weight: 600;
   padding: 0.2rem 0.55rem; border-radius: 5px;

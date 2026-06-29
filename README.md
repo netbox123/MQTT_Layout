@@ -148,6 +148,8 @@ Each event links to a notification rule that defines the title, message, and sou
 | `config/scenes.json` | Lighting scenes (auto-generated via UI) |
 | `config/ir_devices.json` | Registered ESP32 IR transmitters (auto-generated via UI) |
 | `config/ir_receivers.json` | IR device configs — commands per device keyed by `config_key` (auto-generated via UI) |
+| `config/remotes.json` | Remote type definitions (type, name, brand) |
+| `config/remotes/*.json` | Per-type key definitions for remote layouts |
 
 ## WLED Integration
 
@@ -238,19 +240,26 @@ Control TVs and soundbars via ESP32 IR transceivers — no cloud, no app, just M
 
 ### Hardware
 
-Any ESP32 with an IR LED and IR receiver, flashed with ESPHome (or custom firmware). The module listens on two MQTT topics:
+Any ESP32 with an IR LED and TSOP-type IR receiver, flashed with ESPHome. A ready-to-use ESPHome template is in [`esphome/ir-board-esp32.yaml`](esphome/ir-board-esp32.yaml) — copy it, replace the `XX` placeholders with your board number and IP, and flash via OTA.
+
+MQTT topics used by each board:
 
 | Topic | Direction | Payload |
 |---|---|---|
-| `ir/{id}/transmit` | Dashboard → ESP32 | JSON IR code (e.g. `{"protocol":"NEC","address":1,"command":42}`) |
-| `ir/{id}/learn` | Dashboard → ESP32 | Any payload — starts capture mode |
-| `ir/{id}/learned` | ESP32 → Dashboard | JSON IR code of the captured signal |
+| `ir/{id}/transmit` | Dashboard → ESP32 | Raw IR timing array, e.g. `[2697,-865,476,...]` |
+| `ir/{id}/learned` | ESP32 → Dashboard | Raw IR timing array of any received signal |
+
+The board continuously publishes to `ir/{id}/learned` for every IR signal it receives. The dashboard captures it during the 33-second learn window when a Learn button is active.
+
+> **Pins (AliExpress IR board):** IR TX → GPIO4, IR RX → GPIO14 (inverted, pull-up)
+
+> **MQTT credentials:** add `mqtt_username` and `mqtt_password` to your ESPHome `secrets.yaml`, matching `config/mqtt.json`.
 
 ### Setup
 
 **Step 1 — Register transmitters**
 
-Add an `irtransmitter` card to any dashboard page. Click **+** to register each ESP32 module with a name and ID. The ID must match the `{id}` used in the MQTT topics above.
+Add an `irtransmitter` card to any dashboard page. Click **+** to register each ESP32 module with a name and ID. The ID must match the hostname used in the ESPHome YAML (e.g. `ir-47`).
 
 **Step 2 — Register IR devices**
 
@@ -262,10 +271,9 @@ Add an `irreceiver` card (give it a unique `config_key` in the card settings). C
 - **Commands** — one row per button; enter a code manually or click **Learn** to capture it from the original remote
 
 **Learn flow:**
-1. Click **Learn** next to a command button
-2. The button pulses — point the original remote at the ESP32 and press the button
-3. The dashboard publishes to `ir/{id}/learn`, the ESP32 captures the signal and publishes to `ir/{id}/learned`
-4. The code auto-fills; the pulse stops
+1. Click **Learn** next to a command button — the button pulses for 33 seconds
+2. Point the original remote at the ESP32 and press the button
+3. The captured code auto-fills and the pulse stops
 
 ### Using the remote
 
@@ -273,6 +281,8 @@ Click **Remote** on any registered device to open the remote control:
 
 - **Desktop** — opens as a centered overlay with a dark styled shell
 - **Mobile** — opens full-screen (tap **← Back** to return)
+
+The **Remotes** page (accessible from the sidebar) provides a tab-based interface: top tabs switch between remote types (Philips TV, LG TV, Soundbar), and receiver tabs inside the remote shell switch between devices assigned to each transmitter.
 
 ### Supported remote layouts
 

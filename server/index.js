@@ -313,6 +313,36 @@ function loadIrDevices() {
   try { return JSON.parse(fs.readFileSync(irDevicesPath, 'utf-8')); } catch { return []; }
 }
 app.get('/api/ir-devices', (req, res) => res.json(loadIrDevices()));
+
+// Remotes config
+const remotesPath     = path.join(__dirname, '../config/remotes.json');
+const remotesDir      = path.join(__dirname, '../config/remotes');
+app.get('/api/remotes', (_req, res) => {
+  try { res.json(JSON.parse(fs.readFileSync(remotesPath, 'utf-8'))); } catch { res.json([]); }
+});
+app.get('/api/remotes/:type', (req, res) => {
+  const file = path.join(remotesDir, `${req.params.type}.json`);
+  try { res.json(JSON.parse(fs.readFileSync(file, 'utf-8'))); } catch { res.status(404).json({ error: 'Not found' }); }
+});
+
+// All receivers across all pages (aggregated)
+app.get('/api/all-receivers', (_req, res) => {
+  const pagesDir = path.join(__dirname, '../config/pages');
+  const receivers = [];
+  try {
+    for (const file of fs.readdirSync(pagesDir).filter(f => f.endsWith('.json'))) {
+      const page = JSON.parse(fs.readFileSync(path.join(pagesDir, file), 'utf-8'));
+      for (const card of page.cards ?? []) {
+        if (card.type === 'irreceiver') {
+          for (const r of card.receivers ?? []) {
+            if (!receivers.find(x => x.id === r.id)) receivers.push(r);
+          }
+        }
+      }
+    }
+  } catch { /* ignore */ }
+  res.json(receivers);
+});
 app.patch('/api/ir-devices', (req, res) => {
   try {
     fs.writeFileSync(irDevicesPath, JSON.stringify(req.body, null, 2));

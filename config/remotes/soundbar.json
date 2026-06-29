@@ -1,0 +1,8 @@
+{
+  "keys": [
+    { "key": "power",    "label": "Power" },
+    { "key": "vol_up",   "label": "Vol +" },
+    { "key": "vol_down", "label": "Vol -" },
+    { "key": "mute",     "label": "Mute" }
+  ]
+}

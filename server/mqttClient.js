@@ -136,14 +136,13 @@ export function createMqttClient(pageConfigs, wsServer, onMessage = null) {
     },
 
     subscribeTopics(topics) {
-      if (!currentClient?.connected || topics.length === 0) return;
+      if (topics.length === 0) return;
       const newOnes = topics.filter(t => !activeTopics.has(t));
       if (newOnes.length === 0) return;
+      newOnes.forEach(t => activeTopics.add(t));
+      if (!currentClient?.connected) return;
       currentClient.subscribe(newOnes, (err) => {
-        if (!err) {
-          newOnes.forEach(t => activeTopics.add(t));
-          console.log(`[MQTT] Subscribed to ${newOnes.length} event topic(s)`);
-        }
+        if (!err) console.log(`[MQTT] Subscribed to ${newOnes.length} event topic(s)`);
       });
     },
   };
