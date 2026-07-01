@@ -314,6 +314,15 @@ function loadIrDevices() {
 }
 app.get('/api/ir-devices', (req, res) => res.json(loadIrDevices()));
 
+// Apple TV devices
+const appleTvPath = path.join(__dirname, '../config/appletv.json');
+app.get('/api/appletv-devices', (_req, res) => {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(appleTvPath, 'utf-8'));
+    res.json((cfg.devices ?? []).map(({ id, name }) => ({ id, name })));
+  } catch { res.json([]); }
+});
+
 // Remotes config
 const remotesPath     = path.join(__dirname, '../config/remotes.json');
 const remotesDir      = path.join(__dirname, '../config/remotes');

@@ -1,5 +1,6 @@
 [
   { "type": "philips_tv", "name": "Philips TV", "brand": "PHILIPS" },
   { "type": "lg_tv",      "name": "LG TV",      "brand": "LG" },
-  { "type": "soundbar",   "name": "Soundbar",   "brand": "SOUNDBAR" }
+  { "type": "soundbar",   "name": "Soundbar",   "brand": "SOUNDBAR" },
+  { "type": "apple_tv",   "name": "Apple TV",   "brand": "APPLE TV" }
 ]

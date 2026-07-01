@@ -47,6 +47,7 @@ import { useMqtt } from '../composables/useMqtt.js';
 import PhilipsTvRemote from '../components/remotes/PhilipsTvRemote.vue';
 import LgTvRemote from '../components/remotes/LgTvRemote.vue';
 import SoundbarRemote from '../components/remotes/SoundbarRemote.vue';
+import AppleTvRemote from '../components/remotes/AppleTvRemote.vue';
 
 defineProps({
   pageConfig: { type: Object, default: () => ({}) },
@@ -84,14 +85,23 @@ function selectType(type) {
 function remoteComponent(type) {
   if (type === 'lg_tv')    return LgTvRemote;
   if (type === 'soundbar') return SoundbarRemote;
+  if (type === 'apple_tv') return AppleTvRemote;
   return PhilipsTvRemote;
 }
 
 function sendCommand(cmdKey) {
-  if (!activeReceiver.value?.transmitter_id) return;
-  const code = activeReceiver.value.commands?.[cmdKey];
+  const receiver = activeReceiver.value;
+  if (!receiver) return;
+  if (receiver.type === 'apple_tv') {
+    const cmd = receiver.commands?.[cmdKey];
+    if (!cmd || !receiver.atv_id) return;
+    publish(`appletv/${receiver.atv_id}/command`, cmd);
+    return;
+  }
+  if (!receiver.transmitter_id) return;
+  const code = receiver.commands?.[cmdKey];
   if (!code) return;
-  publish(`ir/${activeReceiver.value.transmitter_id}/transmit`, JSON.stringify(code));
+  publish(`ir/${receiver.transmitter_id}/transmit`, JSON.stringify(code));
 }
 
 onMounted(async () => {

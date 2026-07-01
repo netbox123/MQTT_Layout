@@ -22,6 +22,7 @@ import { useMqtt } from '../composables/useMqtt.js';
 import PhilipsTvRemote from './remotes/PhilipsTvRemote.vue';
 import LgTvRemote from './remotes/LgTvRemote.vue';
 import SoundbarRemote from './remotes/SoundbarRemote.vue';
+import AppleTvRemote from './remotes/AppleTvRemote.vue';
 
 const props = defineProps({
   device:   { type: Object,  required: true },
@@ -35,11 +36,18 @@ const remoteComponent = computed(() => {
   switch (props.device.type) {
     case 'lg_tv':    return LgTvRemote;
     case 'soundbar': return SoundbarRemote;
+    case 'apple_tv': return AppleTvRemote;
     default:         return PhilipsTvRemote;
   }
 });
 
 function sendCommand(cmdKey) {
+  if (props.device.type === 'apple_tv') {
+    const cmd = props.device.commands?.[cmdKey];
+    if (!cmd || !props.device.atv_id) return;
+    publish(`appletv/${props.device.atv_id}/command`, cmd);
+    return;
+  }
   const code = props.device.commands?.[cmdKey];
   if (!code || !props.device.transmitter_id) return;
   publish(`ir/${props.device.transmitter_id}/transmit`, JSON.stringify(code));

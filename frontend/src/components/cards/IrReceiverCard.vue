@@ -38,32 +38,44 @@
             <option v-for="rt in remoteTypes" :key="rt.type" :value="rt.type">{{ rt.name }}</option>
           </select>
 
-          <label class="field-label">Transmitter</label>
-          <select class="field-input" v-model="dialog.transmitter_id">
-            <option value="">— select —</option>
-            <option v-for="t in transmitters" :key="t.id" :value="t.id">{{ t.name }}</option>
-          </select>
+          <template v-if="dialog.type === 'apple_tv'">
+            <label class="field-label">Apple TV</label>
+            <select class="field-input" v-model="dialog.atv_id">
+              <option value="">— select —</option>
+              <option v-for="a in atvDevices" :key="a.id" :value="a.id">{{ a.name }}</option>
+            </select>
+          </template>
+          <template v-else>
+            <label class="field-label">Transmitter</label>
+            <select class="field-input" v-model="dialog.transmitter_id">
+              <option value="">— select —</option>
+              <option v-for="t in transmitters" :key="t.id" :value="t.id">{{ t.name }}</option>
+            </select>
+          </template>
         </div>
 
         <div class="commands-section">
           <div class="commands-header">
-            IR Commands
-            <span class="commands-hint">Click Learn, then point remote at ESP32</span>
+            {{ dialog.type === 'apple_tv' ? 'Commands (predefined)' : 'IR Commands' }}
+            <span v-if="dialog.type !== 'apple_tv'" class="commands-hint">Click Learn, then point remote at ESP32</span>
           </div>
           <div class="commands-grid">
             <template v-for="cmd in commandsForType(dialog.type)" :key="cmd.key">
               <span class="cmd-label">{{ cmd.label }}</span>
               <input
                 class="field-input cmd-input"
-                :value="codeDisplay(dialog.commands[cmd.key])"
+                :value="dialog.type === 'apple_tv' ? cmd.key : codeDisplay(dialog.commands[cmd.key])"
+                :readonly="dialog.type === 'apple_tv'"
                 placeholder="not learned"
-                @change="setCode(cmd.key, $event.target.value)"
+                @change="dialog.type !== 'apple_tv' && setCode(cmd.key, $event.target.value)"
               />
               <button
+                v-if="dialog.type !== 'apple_tv'"
                 class="learn-btn"
                 :class="{ 'learn-btn--active': learnTarget === cmd.key }"
                 @click="toggleLearn(cmd.key)"
               >{{ learnTarget === cmd.key ? 'Listening…' : 'Learn' }}</button>
+              <span v-else class="learn-btn learn-btn--fixed">✓</span>
             </template>
           </div>
         </div>
@@ -126,6 +138,11 @@ async function loadRemoteTypes() {
 }
 
 function sendPower(d) {
+  if (d.type === 'apple_tv') {
+    if (!d.atv_id) return;
+    publish(`appletv/${d.atv_id}/command`, 'turn_on');
+    return;
+  }
   const cmd = d.commands?.power;
   if (!cmd || !d.transmitter_id) return;
   publish(`ir/${d.transmitter_id}/transmit`, JSON.stringify(cmd));
@@ -159,8 +176,18 @@ async function fetchTransmitters() {
   } catch { /* ignore */ }
 }
 
+// ── Apple TV devices ──────────────────────────────────────────────────────────
+const atvDevices = ref([]);
+async function fetchAtvDevices() {
+  try {
+    const res = await fetch('/api/appletv-devices');
+    if (res.ok) atvDevices.value = await res.json();
+  } catch { /* ignore */ }
+}
+
 onMounted(() => {
   fetchTransmitters();
+  fetchAtvDevices();
   loadRemoteTypes();
   window.addEventListener('ir-devices-updated', fetchTransmitters);
 });
@@ -183,15 +210,21 @@ const dialog = ref(null);
 const learnTarget = ref(null);
 let learnTimer = null;
 
+function atvCommandsForType(type) {
+  const keys = remoteKeys.value[type] ?? [];
+  return Object.fromEntries(keys.map(k => [k.key, k.key]));
+}
+
 function openAdd() {
   dialog.value = {
     id: Date.now().toString(36),
-    name: '', type: remoteTypes.value[0]?.type ?? 'philips_tv', transmitter_id: '',
+    name: '', type: remoteTypes.value[0]?.type ?? 'philips_tv',
+    transmitter_id: '', atv_id: '',
     commands: {}, isNew: true, error: '',
   };
 }
 function openEdit(d) {
-  dialog.value = { ...d, commands: { ...(d.commands ?? {}) }, isNew: false, error: '' };
+  dialog.value = { atv_id: '', transmitter_id: '', ...d, commands: { ...(d.commands ?? {}) }, isNew: false, error: '' };
 }
 function closeDialog() { stopLearn(); dialog.value = null; }
 
@@ -245,6 +278,9 @@ watch(() => {
 async function saveDevice() {
   const { isNew, error, ...data } = dialog.value;
   if (!data.name.trim()) return;
+  if (data.type === 'apple_tv') {
+    data.commands = atvCommandsForType(data.type);
+  }
   let updated;
   if (isNew) updated = [...devices.value, data];
   else updated = devices.value.map(d => d.id === data.id ? data : d);
@@ -351,6 +387,7 @@ defineExpose({ openAdd });
 }
 .learn-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 .learn-btn--active { border-color: #f59e0b; color: #f59e0b; animation: pulse 1s infinite; }
+.learn-btn--fixed { cursor: default; color: #4caf50; border-color: #2a4a2a; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 .dialog-error { font-size: 0.8rem; color: var(--accent-red); }
 .dialog-actions { display: flex; justify-content: space-between; align-items: center; }

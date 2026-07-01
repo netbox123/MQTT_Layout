@@ -1,0 +1,21 @@
+{
+  "keys": [
+    { "key": "turn_on",       "label": "Power On" },
+    { "key": "turn_off",      "label": "Power Off" },
+    { "key": "volume_up",     "label": "Vol +" },
+    { "key": "volume_down",   "label": "Vol -" },
+    { "key": "up",            "label": "Up" },
+    { "key": "down",          "label": "Down" },
+    { "key": "left",          "label": "Left" },
+    { "key": "right",         "label": "Right" },
+    { "key": "select",        "label": "Select" },
+    { "key": "menu",          "label": "Back" },
+    { "key": "home",          "label": "Home" },
+    { "key": "top_menu",      "label": "Top Menu" },
+    { "key": "play_pause",    "label": "Play/Pause" },
+    { "key": "previous",      "label": "Previous" },
+    { "key": "next",          "label": "Next" },
+    { "key": "skip_backward", "label": "Skip -" },
+    { "key": "skip_forward",  "label": "Skip +" }
+  ]
+}
