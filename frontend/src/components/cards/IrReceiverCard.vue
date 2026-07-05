@@ -57,7 +57,7 @@
         <div class="commands-section">
           <div class="commands-header">
             {{ dialog.type === 'apple_tv' ? 'Commands (predefined)' : 'IR Commands' }}
-            <span v-if="dialog.type !== 'apple_tv'" class="commands-hint">Click Learn, then point remote at ESP32</span>
+            <span v-if="dialog.type !== 'apple_tv'" class="commands-hint">Click Learn, then point remote at any ESP32</span>
           </div>
           <div class="commands-grid">
             <template v-for="cmd in commandsForType(dialog.type)" :key="cmd.key">
@@ -102,14 +102,12 @@ export const icon = '📺';
 import { ref, inject, computed, onMounted, onUnmounted, watch } from 'vue';
 import { mdiRemote, mdiTelevision, mdiSpeaker } from '@mdi/js';
 import { useMqtt } from '../../composables/useMqtt.js';
-import { useMqttStore } from '../../stores/mqttStore.js';
 import IrRemoteOverlay from '../IrRemoteOverlay.vue';
 
 const props = defineProps({ card: { type: Object, required: true } });
 const emit  = defineEmits(['open-remote']);
 const editing = inject('editing', ref(false));
 const { publish } = useMqtt();
-const mqttStore = useMqttStore();
 
 const patchCard = inject('patchCard', null);
 
@@ -232,19 +230,27 @@ function closeDialog() { stopLearn(); dialog.value = null; }
 function toggleLearn(cmdKey) {
   if (learnTarget.value === cmdKey) { stopLearn(); return; }
   stopLearn();
-  const tid = dialog.value?.transmitter_id;
-  if (!tid) { dialog.value.error = 'Select a transmitter first'; return; }
+  if (!dialog.value) return;
   dialog.value.error = '';
   learnTarget.value = cmdKey;
-  const payload = JSON.stringify({ cmd: cmdKey, device: dialog.value.name });
-  publish(`ir/${tid}/learn`, payload);
+  window.addEventListener('ir-learned', onIrLearned);
   learnTimer = setTimeout(() => stopLearn(), 33000);
 }
-function stopLearn() { clearTimeout(learnTimer); learnTarget.value = null; }
+function stopLearn() {
+  clearTimeout(learnTimer);
+  learnTarget.value = null;
+  window.removeEventListener('ir-learned', onIrLearned);
+}
 
-watch(() => dialog.value?.transmitter_id, async (newVal, oldVal) => {
-  if (!dialog.value || !oldVal || newVal === oldVal) return;
-  dialog.value.commands = {};
+async function onIrLearned(e) {
+  if (!learnTarget.value || !dialog.value) return;
+  const val = e.detail.value;
+  try {
+    dialog.value.commands[learnTarget.value] = typeof val === 'string' ? JSON.parse(val) : val;
+  } catch {
+    dialog.value.commands[learnTarget.value] = val;
+  }
+  stopLearn();
   const { isNew, error, ...data } = dialog.value;
   if (data.name.trim()) {
     const updated = isNew
@@ -252,19 +258,11 @@ watch(() => dialog.value?.transmitter_id, async (newVal, oldVal) => {
       : devices.value.map(d => d.id === data.id ? data : d);
     await patchDevices(updated);
   }
-});
+}
 
-watch(() => {
-  const tid = dialog.value?.transmitter_id;
-  return tid ? mqttStore.topicValues[`ir/${tid}/learned`] ?? null : null;
-}, async (val) => {
-  if (!val || !learnTarget.value || !dialog.value) return;
-  try {
-    dialog.value.commands[learnTarget.value] = typeof val === 'string' ? JSON.parse(val) : val;
-  } catch {
-    dialog.value.commands[learnTarget.value] = val;
-  }
-  stopLearn();
+watch(() => dialog.value?.transmitter_id, async (newVal, oldVal) => {
+  if (!dialog.value || !oldVal || newVal === oldVal) return;
+  dialog.value.commands = {};
   const { isNew, error, ...data } = dialog.value;
   if (data.name.trim()) {
     const updated = isNew

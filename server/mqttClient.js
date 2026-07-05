@@ -23,6 +23,7 @@ export function saveMqttConfig(cfg) {
 
 export function createMqttClient(pageConfigs, wsServer, onMessage = null) {
   let activeTopics = new Set(extractAllTopics(pageConfigs));
+  const permanentTopics = new Set(); // added via subscribeTopics, never removed by refresh
   let currentClient = null;
 
   function buildOptions(cfg) {
@@ -97,7 +98,7 @@ export function createMqttClient(pageConfigs, wsServer, onMessage = null) {
 
   return {
     refresh(newPageConfigs) {
-      const newTopics = new Set(extractAllTopics(newPageConfigs));
+      const newTopics = new Set([...extractAllTopics(newPageConfigs), ...permanentTopics]);
       const toUnsub = [...activeTopics].filter(t => !newTopics.has(t));
       const toSub   = [...newTopics].filter(t => !activeTopics.has(t));
 
@@ -137,6 +138,7 @@ export function createMqttClient(pageConfigs, wsServer, onMessage = null) {
 
     subscribeTopics(topics) {
       if (topics.length === 0) return;
+      topics.forEach(t => permanentTopics.add(t));
       const newOnes = topics.filter(t => !activeTopics.has(t));
       if (newOnes.length === 0) return;
       newOnes.forEach(t => activeTopics.add(t));

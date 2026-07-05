@@ -47,6 +47,9 @@ export function useMqtt() {
           window.dispatchEvent(new CustomEvent('scene-state', { detail: msg }));
         } else if (msg.topic !== undefined) {
           mqttStore.setTopicValue(msg.topic, msg.value);
+          if (msg.topic.startsWith('ir/') && msg.topic.endsWith('/learned')) {
+            window.dispatchEvent(new CustomEvent('ir-learned', { detail: { topic: msg.topic, value: msg.value } }));
+          }
         }
       } catch {
         console.warn('[WS] Unparseable message:', event.data);
