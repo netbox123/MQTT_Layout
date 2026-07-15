@@ -24,6 +24,7 @@ A local-first, MQTT-driven home automation dashboard built with **Vue 3 + Expres
 - **IR remote system** — register ESP32 IR transceivers as transmitters, then register TV / soundbar devices against them; learn codes directly from physical remotes via MQTT; open styled remotes as an overlay on desktop or full-screen on mobile
 - **WLED integration** — register WLED dimmers via the `/wled` device page; control them with the WLED card; color presets managed via the Color card
 - **Theme system** — create, edit and apply custom UI themes; live preview while editing colors and fonts; themes persist across sessions
+- **IPTV / TV channels** — browse, search and favorite ~10,000 live TV channels from the [iptv-org](https://github.com/iptv-org/iptv) public dataset; plays directly in-browser (no VLC needed) via a backend HLS relay proxy
 - **Caddy reverse proxy** — HTTPS with basic auth, WebSocket support
 
 ## Stack
@@ -150,6 +151,7 @@ Each event links to a notification rule that defines the title, message, and sou
 | `config/ir_receivers.json` | IR device configs — commands per device keyed by `config_key` (auto-generated via UI) |
 | `config/remotes.json` | Remote type definitions (type, name, brand) |
 | `config/remotes/*.json` | Per-type key definitions for remote layouts |
+| `config/iptv_favorites.json` | Favorited IPTV channel IDs (auto-generated via UI) |
 
 ## WLED Integration
 
@@ -291,6 +293,16 @@ The **Remotes** page (accessible from the sidebar) provides a tab-based interfac
 | `philips_tv` | Power, play controls, source, D-pad + OK, back/options, vol/home, color buttons |
 | `lg_tv` | Power, source/mute/settings, D-pad + OK, back/home/info, vol/ch, play controls |
 | `soundbar` | Power, volume up/down, mute |
+
+## IPTV / TV Channels
+
+The **TV** page (sidebar / mobile nav) turns the sprawling [iptv-org](https://github.com/iptv-org/iptv) public channel list into something actually usable — no more scrolling a 13,000-entry playlist in VLC with no favorites.
+
+- **Data** — the server fetches and joins `channels`, `streams`, `countries`, `categories` and `logos` from the [iptv-org API](https://iptv-org.github.io/api/) at startup and every 24h, keeping ~10,000 channels (with at least one stream, excluding NSFW) cached in memory.
+- **Browsing** — search by name, filter by country or category, toggle between All and Favorites.
+- **Favorites** — starred channels are saved server-side in `config/iptv_favorites.json`, so they sync across every device on the dashboard rather than living in one browser's `localStorage`.
+- **Playback** — almost all channels are HLS (`.m3u8`), which don't play natively in most browsers and often hit CORS, mixed-content (`http://` on an https dashboard), or custom `Referer`/`User-Agent` requirements. The server proxies streams at `/api/iptv/stream`, rewriting playlist URLs (master → media → segments) so [hls.js](https://github.com/video-dev/hls.js) can play them directly in the browser — VLC is no longer required. Safari uses its native HLS support instead of hls.js.
+- **Reliability** — if a channel's stream fails, the player automatically tries that channel's next mirror (some channels list multiple); if all fail, it shows "unavailable" rather than hanging.
 
 ## License
 
