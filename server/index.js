@@ -13,6 +13,7 @@ import { createWsServer } from './wsServer.js';
 import net from 'net';
 import { handleCameraStream, handleCameraSnapshot } from './cameraProxy.js';
 import recipeRoutes from './recipeRoutes.js';
+import iptvRoutes from './iptvRoutes.js';
 import { startBroadlinkBridge } from './broadlinkBridge.js';
 
 // Kill any ffmpeg processes left over from a previous server session
@@ -291,6 +292,7 @@ app.get('/api/weather', async (req, res) => {
 app.get('/api/camera/stream', handleCameraStream);
 app.get('/api/camera/snapshot', handleCameraSnapshot);
 app.use('/api/recipes', recipeRoutes);
+app.use('/api/iptv', iptvRoutes);
 
 // WLED devices JSON — read/write
 const wledDevicesPath = path.join(__dirname, '../config/wled_devices.json');

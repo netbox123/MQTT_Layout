@@ -28,7 +28,8 @@ const isMobile = computed(() => route.path.startsWith('/m/') || route.path === '
 
 .main-content {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 0.75rem;
   min-width: 0;
 }

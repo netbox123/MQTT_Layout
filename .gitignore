@@ -12,6 +12,7 @@ config/pages/
 # Runtime data
 config/notifications.json
 config/notification_events.json
+logs/
 
 # Sounds (add your own)
 sounds/alert_sounds/*

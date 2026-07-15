@@ -25,6 +25,7 @@
       </nav>
       <div v-if="error" class="mobile-error">{{ error }}</div>
       <RemotesTabPage v-else-if="page?.page_type === 'remotes'" :page-config="page" :embedded="true" />
+      <IptvPage v-else-if="page?.page_type === 'iptv'" :page-config="page" />
       <div v-else class="mobile-cards">
         <div
           v-for="card in mobileCards"
@@ -84,6 +85,7 @@ import ThemeCard from '../components/cards/ThemeCard.vue';
 import IrReceiverCard from '../components/cards/IrReceiverCard.vue';
 import IrRemoteOverlay from '../components/IrRemoteOverlay.vue';
 import RemotesTabPage from './RemotesTabPage.vue';
+import IptvPage from './IptvPage.vue';
 
 const route = useRoute();
 const router = useRouter();
