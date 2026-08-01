@@ -1,7 +1,20 @@
 [
   {
     "id": "c18cbc",
-    "name": "Living Room Strip",
-    "ip": "192.168.0.61"
+    "name": "Living river",
+    "ip": "192.168.0.61",
+    "type": "RGBW"
+  },
+  {
+    "name": "Living garden",
+    "id": "c18c34",
+    "ip": "192.168.0.62",
+    "type": "RGBW"
+  },
+  {
+    "name": "Strip tafel",
+    "id": "c18c30",
+    "ip": "192.168.0.63",
+    "type": "RGBW"
   }
 ]

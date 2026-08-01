@@ -107,6 +107,12 @@
       "url": "https://www.apple.com/nl/",
       "category": "Apple",
       "order": 0
+    },
+    {
+      "name": "Allpax",
+      "url": "https://www.allpax.de",
+      "category": "Production",
+      "order": 2
     }
   ]
 }

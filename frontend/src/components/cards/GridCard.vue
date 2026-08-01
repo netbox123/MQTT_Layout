@@ -57,11 +57,14 @@ export const icon = '▤';
 <script setup>
 import { computed } from 'vue';
 import { useMqttStore } from '../../stores/mqttStore.js';
+import { useMqtt } from '../../composables/useMqtt.js';
 import { ICON_MAP } from '../../utils/pageIcons.js';
 
 const props = defineProps({
   card: { type: Object, required: true },
 });
+
+const { publish } = useMqtt();
 
 const effectiveCols = computed(() => {
   const items = props.card.items ?? [];
@@ -79,8 +82,21 @@ function rawVal(item) {
   return mqttStore.getValue(item.mqtt_topic);
 }
 
-function isOn(item) {
+// ESPHome's native MQTT light state payload is JSON (e.g. {"state":"ON",...});
+// switches/binary_sensors/HA statestream publish plain "ON"/"OFF" text.
+function stateVal(item) {
   const v = rawVal(item);
+  if (typeof v === 'string' && v.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(v);
+      if (typeof parsed.state === 'string') return parsed.state;
+    } catch { /* not JSON, use raw value */ }
+  }
+  return v;
+}
+
+function isOn(item) {
+  const v = stateVal(item);
   if (v === null) return false;
   return v === true || v === 1 || String(v).toLowerCase() === 'on' || String(v) === '1';
 }
@@ -118,6 +134,18 @@ function gaugeColor(item) {
 
 function toggle(item) {
   const next = isOn(item) ? 'off' : 'on';
+  const cmdTopic = item.command_topic?.trim();
+
+  // ESP32 boards migrated off HA publish/subscribe directly under esp32/...
+  // ESPHome's native MQTT light schema takes a JSON payload; switches take plain text.
+  if (cmdTopic?.startsWith('esp32/')) {
+    const payload = cmdTopic.includes('/light/')
+      ? JSON.stringify({ state: next.toUpperCase() })
+      : next.toUpperCase();
+    publish(cmdTopic, payload);
+    return;
+  }
+
   const entityId = item.ha_entity_id?.trim();
   if (!entityId) return;
   const domain = entityId.split('.')[0] || 'switch';

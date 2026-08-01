@@ -15,14 +15,14 @@ A local-first, MQTT-driven home automation dashboard built with **Vue 3 + Expres
   - Edge detection: fires only when a value *crosses* a threshold (not on every message)
   - String equality trigger (`= ON`) for binary sensors (e.g. motion detection)
 - **Victron integration** — solar, battery, inverter data via MQTT; Victron GX GUI v2 proxied and made available outside the local network via Caddy
-- **Home Assistant integration** — entity control via HA REST API
+- **ESP32 direct MQTT** — switches, lights and sensors on ESPHome boards publish/subscribe straight to the broker, no Home Assistant round-trip; a minimal HA REST fallback remains only for HA-only virtual entities (e.g. `input_boolean` helpers) — see [ESP32 Direct MQTT](#esp32-direct-mqtt) below
 - **URL launcher** — categorised links with tab navigation
 - **Recipe viewer** — stored locally, no external services
 - **Mobile layout** — dedicated responsive view at `/m/<page-slug>` with per-card mobile visibility and ordering
 - **Edit mode** — all cards support drag-and-drop repositioning and grid resizing directly in the browser; add, remove and configure cards without touching config files
 - **Philips TV remote** — dedicated full-screen remote page at `/remote`, optimised for iPhone (no sidebar, large touch targets)
 - **IR remote system** — register ESP32 IR transceivers as transmitters, then register TV / soundbar devices against them; learn codes directly from physical remotes via MQTT; open styled remotes as an overlay on desktop or full-screen on mobile
-- **WLED integration** — register WLED dimmers via the `/wled` device page; control them with the WLED card; color presets managed via the Color card
+- **WLED integration** — register WLED dimmers via the `/wled` device page; control them with the WLED card, each with its own RGBW color
 - **Theme system** — create, edit and apply custom UI themes; live preview while editing colors and fonts; themes persist across sessions
 - **IPTV / TV channels** — browse, search and favorite ~10,000 live TV channels from the [iptv-org](https://github.com/iptv-org/iptv) public dataset; plays directly in-browser (no VLC needed) via a backend HLS relay proxy
 - **Caddy reverse proxy** — HTTPS with basic auth, WebSocket support
@@ -88,7 +88,7 @@ These are served at `/sounds/` and used by the notification system.
 |---|---|
 | `sensor` | Numeric MQTT value with unit |
 | `gauge` | Arc gauge with min/max/color thresholds |
-| `switch` | Toggle via MQTT or Home Assistant |
+| `switch` | Toggle via MQTT (falls back to Home Assistant only if no MQTT command topic is configured) |
 | `indicator` | On/off state indicator |
 | `button` | Publish a fixed MQTT payload |
 | `text` | Display any MQTT string value |
@@ -103,10 +103,9 @@ These are served at `/sounds/` and used by the notification system.
 | `recipe` | Local recipe viewer |
 | `machine` | Network machines — online status, Wake on LAN, shutdown |
 | `tv` | Network TVs — online status, Wake on LAN, power off |
-| `color` | RGBW color preset manager with categories (used by WLED card) |
-| `wled` | WLED LED strip control — per-device lightbulb toggle with color preset |
+| `wled` | WLED LED strip control — per-device lightbulb toggle with its own RGBW color |
 | `wiim` | WiiM / LinkPlay streamer — volume slider and input selector with custom labels |
-| `scenes` | Lighting scene sequencer — play ordered sequences of dimmer, fade, random and HA light steps |
+| `scenes` | Lighting scene sequencer — play ordered sequences of dimmer, fade, random and light steps (publishes MQTT directly to ESP32-backed lights, falling back to HA only for non-MQTT entities) |
 | `theme` | UI theme manager — create and apply custom color and font themes with live preview |
 | `irtransmitter` | ESP32 IR transmitter registry — add, edit and delete transmitters (id, name, IP) |
 | `irreceiver` | IR device registry — register TVs and soundbars, assign a transmitter, learn commands from a physical remote, open a styled remote control |
@@ -141,7 +140,6 @@ Each event links to a notification rule that defines the title, message, and sou
 | `config/homeassistant.json` | HA URL and long-lived token |
 | `config/pages/*.json` | Page and card layouts |
 | `config/urls.json` | URL launcher categories and links |
-| `config/colors.json` | RGBW color preset categories and values |
 | `config/wled_devices.json` | Registered WLED dimmers (id, name, IP) |
 | `config/themes.json` | UI themes (auto-generated via Theme card) |
 | `config/notifications.json` | Notification history log (auto-generated) |
@@ -167,9 +165,8 @@ The `id` is the last part of the WLED MQTT topic (e.g. `wled/c18cbc/`). The serv
 
 **Workflow:**
 1. Go to the **WLED** page in the sidebar to register your dimmers
-2. Use the **Color card** to create RGBW preset categories and values
-3. Add a **WLED card** to any dashboard page, select devices and assign a color preset to each
-4. Click the lightbulb icon on the card to toggle the strip on/off using the configured preset
+2. Add a **WLED card** to any dashboard page, select devices and set an RGBW color for each
+3. Click the lightbulb icon on the card to toggle the strip on/off using the configured color
 
 Color changes publish a JSON payload to `wled/{id}/api`:
 ```json
@@ -187,7 +184,7 @@ The **Scenes card** lets you build and play multi-step lighting sequences across
 | **Set dimmer** | Instantly sets all scene WLED devices to an RGBW color (`transition: 0`) |
 | **Fade** | Smoothly fades from the current color to a target RGBW color; calculated in 1-second steps with `transition: 9` (no WLED 65 s limit) |
 | **Random** | Continuously fades between randomly generated RGBW colors. Choose which channels (R/G/B/W) randomize, set a base color, a **speed** (seconds between targets) and a **random** deviation (±1–255). Interpolated in 1-second steps for smooth transitions |
-| **Set HA light** | Calls the HA service API to turn one or more HA lights/switches ON or OFF |
+| **Set HA light** | Turns one or more lights/switches ON or OFF — publishes MQTT directly if the entity has an `esp32/...` command topic, otherwise falls back to the HA service API |
 
 ### Scene queue
 
@@ -235,6 +232,42 @@ The **Theme card** lets you create and manage custom UI themes. Each theme defin
 - **Revert on cancel** — closing the dialog without saving restores the previous appearance
 - **Persist on apply** — applied theme is saved to `localStorage` and restored on next load with no flash
 - **Fonts bundled** — Inter, Roboto, Open Sans, Lato, Nunito and Ubuntu are served directly from the app with no CDN dependency
+
+## ESP32 Direct MQTT
+
+Switches, lights and sensors on ESPHome boards used to reach the dashboard exclusively via Home Assistant's `mqtt_statestream` integration (republishing under `homeassistant/{component}/{id}/state`) and were controlled via the HA REST API. Boards are being migrated one at a time to publish and subscribe **directly** to the broker instead, cutting HA out of the data path entirely.
+
+### ESPHome config
+
+Add a native `mqtt:` block alongside the existing `api:` block — don't remove `api:`, so Home Assistant's own integration and statestream keep working unchanged during (and after) the migration:
+
+```yaml
+mqtt:
+  broker: 192.168.0.20
+  port: 1883
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  topic_prefix: esp32
+  discovery: false
+```
+
+- `topic_prefix: esp32` — a literal, shared prefix (not the device name), giving topics like `esp32/sensor/{id}/state`
+- `discovery: false` — prevents ESPHome's own MQTT discovery from creating duplicate entities in HA (the device is already exposed there via `api:`)
+- ESPHome auto-derives each topic's `{id}` segment from the entity's `name:`, lowercased with spaces/`#` collapsed to `_` (hyphens are left untouched) — since there's no per-device path segment, entities on boards whose names don't already include the device (e.g. `"#1 outdoor"`) should be renamed to `<device>_<pin#>_<description>` (e.g. `shed8a_1_outdoor`) before flashing, to avoid collisions with other boards sharing the same flat `esp32/` prefix
+
+### Topic convention
+
+| Component | State topic | Command topic | Payload |
+|---|---|---|---|
+| `sensor` / `binary_sensor` | `esp32/{component}/{id}/state` | — | plain text |
+| `switch` | `esp32/switch/{id}/state` | `esp32/switch/{id}/command` | plain text (`ON` / `OFF`) |
+| `light` | `esp32/light/{id}/state` | `esp32/light/{id}/command` | JSON (`{"state":"ON"}`; state topic returns `{"color_mode":"onoff","state":"ON","color":{}}`) |
+
+### Dashboard side
+
+Card config uses two separate fields: `mqtt_topic` for what to display (state), `command_topic` for where to publish when toggled. Toggle logic (`GridCard.vue`, `SwitchCard.vue`, and the Scenes card's light-trigger) publishes MQTT directly whenever `command_topic` starts with `esp32/`, branching on JSON vs. plain payload by component type — and falls back to the legacy HA REST API (`ha_entity_id` → `/api/ha/service/{domain}/turn_on|off`) only for entities with no MQTT command topic, such as HA-only `input_boolean` helpers.
+
+> **Deploy note:** the backend loads `config/pages/*.json` into memory once at startup and builds its MQTT subscription list from that snapshot — editing the JSON on disk needs a server restart to take effect. The frontend is served from the built `frontend/dist/` bundle, not source — editing `.vue` files needs `npm run build` before changes show up in the browser.
 
 ## IR Remote System
 

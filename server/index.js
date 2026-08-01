@@ -434,25 +434,6 @@ app.get('/api/ha-entities', (req, res) => {
   res.json(out);
 });
 
-// Colors JSON — read/write
-const colorsPath = path.join(__dirname, '../config/colors.json');
-app.get('/api/colors', (req, res) => {
-  try {
-    const data = JSON.parse(fs.readFileSync(colorsPath, 'utf-8'));
-    res.json(data);
-  } catch {
-    res.json({ categories: [], presets: [] });
-  }
-});
-app.patch('/api/colors', (req, res) => {
-  try {
-    fs.writeFileSync(colorsPath, JSON.stringify(req.body, null, 2));
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // Themes JSON — read/write
 const themesPath = path.join(__dirname, '../config/themes.json');
 app.get('/api/themes', (_req, res) => {
@@ -778,7 +759,17 @@ function runScene(scene, fromElapsed = 0) {
     } else if (item.type === 'ha_light') {
       const lights = [...(item.lights ?? [])];
       timers.push(setTimeout(async () => {
-        for (const light of lights) await callHaServiceServer(light.ha_entity_id, light.state);
+        for (const light of lights) {
+          const cmdTopic = light.command_topic?.trim();
+          if (cmdTopic?.startsWith('esp32/')) {
+            const payload = cmdTopic.includes('/light/')
+              ? JSON.stringify({ state: light.state })
+              : light.state;
+            mqttClient.publish(cmdTopic, payload);
+          } else {
+            await callHaServiceServer(light.ha_entity_id, light.state);
+          }
+        }
       }, delay));
     } else if (item.type === 'random') {
       const speed = Math.max(1, item.speed ?? 4);

@@ -162,23 +162,38 @@ const album = computed(() => {
   return currentTrack.value?.album?.name ?? '';
 });
 
-const elapsed  = computed(() => activeQueue.value?.elapsed_time ?? 0);
+const elapsedBase     = computed(() => activeQueue.value?.elapsed_time ?? 0);
+const elapsedBaseTime = computed(() => activeQueue.value?.elapsed_time_last_updated ?? null);
+const playbackSpeed   = computed(() => activeQueue.value?.playback_speed ?? 1);
 const duration = computed(() => currentTrack.value?.duration ?? activeQueue.value?.current_item?.duration ?? 0);
 
 // ── Local progress ticker ──────────────────────────────────────────────────
 const localElapsed = ref(0);
 let ticker = null;
 
-// Sync from server whenever queue_time_updated arrives
-watch(elapsed, (v) => { localElapsed.value = v; }, { immediate: true });
+// Server gives us a (elapsed_time, elapsed_time_last_updated) snapshot pair,
+// not a continuous stream — reconstruct the live position by adding wall-clock
+// drift since that snapshot, so we self-correct after seeks/pauses instead of
+// just counting up from wherever we last were.
+function computeLiveElapsed() {
+  const base = elapsedBase.value;
+  if (isPlaying.value && elapsedBaseTime.value) {
+    const drift = Math.max(0, (Date.now() / 1000 - elapsedBaseTime.value) * playbackSpeed.value);
+    return duration.value ? Math.min(base + drift, duration.value) : base + drift;
+  }
+  return base;
+}
+
+// Re-sync whenever a fresh snapshot arrives (poll refresh, track change, seek correction)
+watch([elapsedBase, elapsedBaseTime], () => { localElapsed.value = computeLiveElapsed(); }, { immediate: true });
 
 // Tick every second while playing
 watch(isPlaying, (playing) => {
   clearInterval(ticker);
   if (playing) {
-    ticker = setInterval(() => {
-      localElapsed.value = Math.min(localElapsed.value + 1, duration.value || Infinity);
-    }, 1000);
+    ticker = setInterval(() => { localElapsed.value = computeLiveElapsed(); }, 1000);
+  } else {
+    localElapsed.value = computeLiveElapsed();
   }
 }, { immediate: true });
 
@@ -195,8 +210,8 @@ const maArtUrl = computed(() => {
   function buildUrl(imgObj) {
     if (!imgObj) return '';
     if (typeof imgObj === 'string') return imgObj;
-    if (!imgObj.path) return '';
-    return `${base}/imageproxy?path=${encodeURIComponent(encodeURIComponent(imgObj.path))}&provider=${encodeURIComponent(imgObj.provider ?? '')}&checksum=&size=256`;
+    if (!imgObj.proxy_id) return '';
+    return `${base}/imageproxy/${imgObj.proxy_id}?size=256`;
   }
 
   // MA 2.9+: QueueItem carries per-song art (album art resolved from stream metadata)

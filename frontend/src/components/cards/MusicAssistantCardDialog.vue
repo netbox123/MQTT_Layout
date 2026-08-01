@@ -166,7 +166,8 @@ async function fetchQueueItems() {
   if (!props.activePlayerId) return;
   queueLoading.value = true;
   try {
-    queueItems.value = await props.ma.getQueueItems(props.activePlayerId) ?? [];
+    const total = props.ma.queues.value[props.activePlayerId]?.items || 100;
+    queueItems.value = await props.ma.getQueueItems(props.activePlayerId, total) ?? [];
   } catch { queueItems.value = []; }
   queueLoading.value = false;
   await nextTick();
@@ -182,11 +183,13 @@ function playQueueItem(index) {
 
 function queueItemArt(item) {
   const track = item.media_item;
-  if (!track) return '';
-  const imgObj = track.metadata?.images?.[0] || track.album?.metadata?.images?.[0];
-  if (!imgObj?.path) return '';
+  const imgObj = item.image
+    || track?.metadata?.images?.[0]
+    || track?.album?.image
+    || track?.album?.metadata?.images?.[0];
+  if (!imgObj?.proxy_id) return '';
   const base = (props.maUrl || 'http://192.168.0.20:8095').replace(/\/$/, '');
-  const maArt = `${base}/imageproxy?path=${encodeURIComponent(encodeURIComponent(imgObj.path))}&provider=${encodeURIComponent(imgObj.provider)}&checksum=&size=64`;
+  const maArt = `${base}/imageproxy/${imgObj.proxy_id}?size=80`;
   return `/api/imageproxy?url=${encodeURIComponent(maArt)}`;
 }
 
@@ -277,8 +280,8 @@ watch(activeTab, tab => { if (tab === 'radio') fetchRadioStations(); });
 function radioArt(station) {
   const base = (props.maUrl || 'http://192.168.0.20:8095').replace(/\/$/, '');
   const imgObj = station.metadata?.images?.[0];
-  if (!imgObj?.path) return '';
-  const maArt = `${base}/imageproxy?path=${encodeURIComponent(encodeURIComponent(imgObj.path))}&provider=${encodeURIComponent(imgObj.provider)}&checksum=&size=64`;
+  if (!imgObj?.proxy_id) return '';
+  const maArt = `${base}/imageproxy/${imgObj.proxy_id}?size=80`;
   return `/api/imageproxy?url=${encodeURIComponent(maArt)}`;
 }
 

@@ -19,18 +19,6 @@
           <input class="field-input" v-model="localTitle" placeholder="IR Devices" />
         </div>
 
-        <div class="receivers-section">
-          <label class="field-label">Visible receivers</label>
-          <div class="receiver-check-list">
-            <div v-if="!allReceivers.length" class="no-receivers">No receivers configured</div>
-            <label v-for="r in allReceivers" :key="r.id" class="receiver-check-item">
-              <input type="checkbox" :value="r.id" v-model="localReceiverIds" />
-              <span class="receiver-check-name">{{ r.name }}</span>
-              <span class="receiver-type-badge">{{ TYPE_LABELS[r.type] ?? r.type }}</span>
-            </label>
-          </div>
-        </div>
-
         <div class="modal-actions">
           <button v-if="!isNew" class="modal-delete" @click="$emit('delete')">Delete</button>
           <span v-else></span>
@@ -45,7 +33,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 
 const props = defineProps({
   card:  { type: Object,  required: true },
@@ -53,36 +41,16 @@ const props = defineProps({
 });
 const emit = defineEmits(['save', 'cancel', 'delete']);
 
-const TYPE_LABELS = { philips_tv: 'Philips TV', lg_tv: 'LG TV', soundbar: 'Soundbar' };
-
-const localTitle        = ref(props.card.title ?? '');
-const localMobileShow   = ref(props.card.mobile_show !== false);
-const localMobileOrder  = ref(props.card.mobile_order ?? 0);
-const localReceiverIds  = ref([]);
-const allReceivers      = ref([]);
-
-onMounted(async () => {
-  try {
-    const configKey = props.card.config_key || props.card.title || 'default';
-    const res = await fetch(`/api/ir-receivers/${encodeURIComponent(configKey)}`);
-    if (res.ok) {
-      allReceivers.value = await res.json();
-      const hidden = new Set(props.card.hidden_receiver_ids ?? []);
-      localReceiverIds.value = allReceivers.value.map(r => r.id).filter(id => !hidden.has(id));
-    }
-  } catch { /* ignore */ }
-});
+const localTitle       = ref(props.card.title ?? '');
+const localMobileShow  = ref(props.card.mobile_show !== false);
+const localMobileOrder = ref(props.card.mobile_order ?? 0);
 
 function save() {
-  const allIds = allReceivers.value.map(r => r.id);
-  const checked = new Set(localReceiverIds.value);
-  const { receiver_ids, ...rest } = props.card;
   emit('save', {
-    ...rest,
-    title:               localTitle.value,
-    mobile_show:         localMobileShow.value,
-    mobile_order:        localMobileOrder.value,
-    hidden_receiver_ids: allIds.filter(id => !checked.has(id)),
+    ...props.card,
+    title:        localTitle.value,
+    mobile_show:  localMobileShow.value,
+    mobile_order: localMobileOrder.value,
   });
 }
 </script>
@@ -93,11 +61,9 @@ function save() {
   inset: 0;
   background: rgba(0,0,0,0.6);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   z-index: 1000;
-  overflow-y: auto;
-  padding: 2rem 0;
 }
 
 .modal {
@@ -105,7 +71,7 @@ function save() {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1.75rem;
-  width: 340px;
+  width: 320px;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -139,47 +105,10 @@ function save() {
   padding: 0.35rem 0.6rem;
   font-family: inherit;
   outline: none;
+  flex: 1;
 }
-.field-input--short { width: 8ch; }
+.field-input--short { width: 8ch; flex: none; }
 .field-input:focus { border-color: var(--accent-blue); }
-
-.receivers-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.receiver-check-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  max-height: 200px;
-  overflow-y: auto;
-  border: 1px solid #3d4870;
-  border-radius: 6px;
-  padding: 0.5rem 0.6rem;
-  background: #2a3150;
-}
-
-.no-receivers { font-size: 0.85rem; color: var(--text-muted); }
-
-.receiver-check-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-
-.receiver-check-name { font-size: 0.875rem; color: var(--text-primary); flex: 1; }
-
-.receiver-type-badge {
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  background: #1e2840;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.1rem 0.4rem;
-}
 
 .modal-actions {
   display: flex;

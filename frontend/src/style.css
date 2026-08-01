@@ -41,6 +41,17 @@ a {
   text-decoration: none;
 }
 
+/* Thin overlay scrollbars everywhere (Safari-style on Chrome/Windows) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3a4060 transparent;
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3a4060; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #5060a0; }
+::-webkit-scrollbar-corner { background: transparent; }
+
 button {
   cursor: pointer;
   font-family: inherit;

@@ -324,7 +324,7 @@ defineExpose({ openAdd });
 }
 .power-btn {
   display: flex; align-items: center; justify-content: center;
-  padding: 0 5px; height: 22px; border-radius: 4px; flex-shrink: 0;
+  padding: 0.2rem 0.55rem; border-radius: 4px; flex-shrink: 0;
   border: 1px solid #5090d0; background: transparent; color: #5090d0;
   font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em;
   cursor: pointer; transition: background 0.12s, color 0.12s;

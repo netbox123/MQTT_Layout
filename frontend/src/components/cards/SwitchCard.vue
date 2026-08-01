@@ -16,6 +16,7 @@ export const icon = '💡';
 <script setup>
 import { computed } from 'vue';
 import { useMqttStore } from '../../stores/mqttStore.js';
+import { useMqtt } from '../../composables/useMqtt.js';
 import { ICON_MAP } from '../../utils/pageIcons.js';
 
 const props = defineProps({
@@ -23,16 +24,41 @@ const props = defineProps({
 });
 
 const mqttStore = useMqttStore();
+const { publish } = useMqtt();
 
 const rawValue = computed(() => mqttStore.getValue(props.card.mqtt_topic));
-const isOn = computed(() => {
+// ESPHome's native MQTT light state payload is JSON (e.g. {"state":"ON",...});
+// switches/binary_sensors/HA statestream publish plain "ON"/"OFF" text.
+const stateValue = computed(() => {
   const v = rawValue.value;
+  if (typeof v === 'string' && v.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(v);
+      if (typeof parsed.state === 'string') return parsed.state;
+    } catch { /* not JSON, use raw value */ }
+  }
+  return v;
+});
+const isOn = computed(() => {
+  const v = stateValue.value;
   if (v === null) return false;
   return v === true || v === 1 || String(v).toLowerCase() === 'on' || String(v) === '1';
 });
 
 function toggle() {
   const next = isOn.value ? 'off' : 'on';
+  const cmdTopic = props.card.command_topic?.trim();
+
+  // ESP32 boards migrated off HA publish/subscribe directly under esp32/...
+  // ESPHome's native MQTT light schema takes a JSON payload; switches take plain text.
+  if (cmdTopic?.startsWith('esp32/')) {
+    const payload = cmdTopic.includes('/light/')
+      ? JSON.stringify({ state: next.toUpperCase() })
+      : next.toUpperCase();
+    publish(cmdTopic, payload);
+    return;
+  }
+
   const domain = props.card.ha_entity_id?.split('.')[0] ?? 'switch';
   fetch(`/api/ha/service/${domain}/turn_${next}`, {
     method: 'POST',

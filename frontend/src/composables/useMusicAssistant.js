@@ -120,8 +120,10 @@ export function useMusicAssistant(maUrl, maToken) {
         queues.value = { ...queues.value, [data.queue_id]: data };
         break;
       case 'queue_time_updated': {
-        const q = queues.value[data.queue_id];
-        if (q) queues.value = { ...queues.value, [data.queue_id]: { ...q, elapsed_time: data.elapsed_time } };
+        // data here is the raw elapsed-seconds number, not an object — the
+        // queue id lives in event.object_id (see MassEvent: {event, object_id, data})
+        const q = queues.value[event.object_id];
+        if (q) queues.value = { ...queues.value, [event.object_id]: { ...q, elapsed_time: data, elapsed_time_last_updated: Date.now() / 1000 } };
         break;
       }
     }

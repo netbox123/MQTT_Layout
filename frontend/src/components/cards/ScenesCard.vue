@@ -655,7 +655,17 @@ function callHaService(ha_entity_id, state) {
   }).catch(() => {});
 }
 
+// ESP32 boards migrated off HA publish/subscribe directly under esp32/...
+// ESPHome's native MQTT light schema takes a JSON payload; switches take plain text.
 function triggerLight(l) {
+  const cmdTopic = l.command_topic?.trim();
+  if (cmdTopic?.startsWith('esp32/')) {
+    const payload = cmdTopic.includes('/light/')
+      ? JSON.stringify({ state: l.state })
+      : l.state;
+    publish(cmdTopic, payload);
+    return;
+  }
   if (l.ha_entity_id) callHaService(l.ha_entity_id, l.state);
 }
 
