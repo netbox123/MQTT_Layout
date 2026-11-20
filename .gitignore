@@ -37,3 +37,6 @@ frontend/public/guiv2/qtloader.js
 
 # Automations (contains home coordinates; template in automations.example.json)
 config/automations.json
+
+# Winch tow recordings (runtime data)
+config/tows/
