@@ -85,6 +85,7 @@ export function createWsServer() {
   };
 
   wss.on = emitter.on.bind(emitter);
+  wss.knownTopics = () => [...topicCache.keys()];
 
   return wss;
 }

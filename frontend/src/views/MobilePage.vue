@@ -78,6 +78,7 @@ import MachineCard from '../components/cards/MachineCard.vue';
 import TvCard from '../components/cards/TvCard.vue';
 import WiimCard from '../components/cards/WiimCard.vue';
 import KvmSwitchCard from '../components/cards/KvmSwitchCard.vue';
+import AutomationsCard from '../components/cards/AutomationsCard.vue';
 import LgTvCard from '../components/cards/LgTvCard.vue';
 import WledCard from '../components/cards/WledCard.vue';
 import WledConfigCard from '../components/cards/WledConfigCard.vue';
@@ -102,7 +103,7 @@ const typeMap = {
   webpage: WebpageCard, grid: GridCard, indicator: IndicatorCard,
   weather: WeatherCard, entities: EntitiesCard,
   musicassistant: MusicAssistantCard, recipe: RecipeCard, pizza: PizzaCard, url: UrlCard, notification: NotificationCard,
-  machine: MachineCard, tv: TvCard, wled: WledCard, wledconfig: WledConfigCard, wiim: WiimCard, kvmswitch: KvmSwitchCard, lgtv: LgTvCard, scenes: ScenesCard, theme: ThemeCard,
+  machine: MachineCard, tv: TvCard, wled: WledCard, wledconfig: WledConfigCard, wiim: WiimCard, kvmswitch: KvmSwitchCard, automations: AutomationsCard, lgtv: LgTvCard, scenes: ScenesCard, theme: ThemeCard,
   irreceiver: IrReceiverCard,
 };
 

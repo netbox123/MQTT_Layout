@@ -21,6 +21,7 @@
         <button v-if="editing && card.type === 'irreceiver'" class="card-url-add-btn" title="Add device" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing && card.type === 'scenes'" class="card-url-add-btn" title="Add scene" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing && card.type === 'theme'" class="card-url-add-btn" title="Add theme" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
+        <button v-if="editing && card.type === 'automations'" class="card-url-add-btn" title="Add automation" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing" class="card-edit-btn" title="Edit card" @click.stop="openEdit(i)">✎</button>
         <div v-if="editing" class="resize-handle" @mousedown.stop="startResize($event, i)" />
       </div>
@@ -172,6 +173,7 @@ import WledCard from '../components/cards/WledCard.vue';
 import WledConfigCard from '../components/cards/WledConfigCard.vue';
 import WiimCard from '../components/cards/WiimCard.vue';
 import KvmSwitchCard from '../components/cards/KvmSwitchCard.vue';
+import AutomationsCard from '../components/cards/AutomationsCard.vue';
 import LgTvCard from '../components/cards/LgTvCard.vue';
 import ScenesCard from '../components/cards/ScenesCard.vue';
 import ThemeCard from '../components/cards/ThemeCard.vue';
@@ -398,6 +400,7 @@ const cardDefaults = {
   lgtv: { type: 'lgtv', title: 'LG TV', tv_id: 'tv_shed', position: { x: 1, y: 1, w: 3, h: 2 } },
   kvmswitch: { type: 'kvmswitch', title: 'KVM Switch', mqtt_topic: 'kvm/shed8b/active', pulse_ms: 300, position: { x: 1, y: 1, w: 3, h: 2 } },
   scenes: { type: 'scenes', title: 'New Scenes', position: { x: 1, y: 1, w: 2, h: 3 } },
+  automations: { type: 'automations', title: 'Automations', position: { x: 1, y: 1, w: 3, h: 3 } },
   theme: { type: 'theme', title: 'Themes', position: { x: 1, y: 1, w: 2, h: 3 } },
   about: { type: 'about', title: 'About', link_text: '', link_url: '', position: { x: 1, y: 1, w: 3, h: 4 } },
   towlist: { type: 'towlist', years: [], position: { x: 1, y: 1, w: 3, h: 4 } },
@@ -461,6 +464,7 @@ const typeMap = {
   kvmswitch: KvmSwitchCard,
   lgtv: LgTvCard,
   scenes: ScenesCard,
+  automations: AutomationsCard,
   theme: ThemeCard,
   irtransmitter: IrTransmitterCard,
   irreceiver: IrReceiverCard,

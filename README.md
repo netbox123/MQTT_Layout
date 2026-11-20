@@ -16,6 +16,7 @@ A local-first, MQTT-driven home automation dashboard built with **Vue 3 + Expres
   - String equality trigger (`= ON`) for binary sensors (e.g. motion detection)
 - **Victron integration** — solar, battery, inverter data via MQTT; Victron GX GUI v2 proxied and made available outside the local network via Caddy
 - **ESP32 direct MQTT** — switches, lights and sensors on ESPHome boards publish/subscribe straight to the broker, no Home Assistant round-trip — see [ESP32 Direct MQTT](#esp32-direct-mqtt) below
+- **Automations** — server-side rules (MQTT trigger → conditions → actions) with a built-in sun calculation, managed from the Automations card; runs without Home Assistant — see [Automations](#automations) below
 - **URL launcher** — categorised links with tab navigation
 - **Recipe viewer** — stored locally, no external services
 - **Mobile layout** — dedicated responsive view at `/m/<page-slug>` with per-card mobile visibility and ordering
@@ -105,6 +106,7 @@ These are served at `/sounds/` and used by the notification system.
 | `wled` | WLED LED strip control — per-device lightbulb toggle with its own RGBW color |
 | `wiim` | WiiM / LinkPlay streamer — volume slider and input selector with custom labels |
 | `scenes` | Lighting scene sequencer — play ordered sequences of dimmer, fade, random and light steps (publishes MQTT directly to ESP32-backed lights, falling back to HA only for non-MQTT entities) |
+| `automations` | Server-side automation rules — enable/disable toggle, last run and result per rule, dark/light indicator; add, edit and delete rules in edit mode |
 | `theme` | UI theme manager — create and apply custom color and font themes with live preview |
 | `irtransmitter` | ESP32 IR transmitter registry — add, edit and delete transmitters (id, name, IP) |
 | `irreceiver` | IR device registry — register TVs and soundbars, assign a transmitter, learn commands from a physical remote, open a styled remote control |
@@ -143,6 +145,7 @@ Each event links to a notification rule that defines the title, message, and sou
 | `config/notifications.json` | Notification history log (auto-generated) |
 | `config/notification_events.json` | MQTT trigger rules (auto-generated) |
 | `config/scenes.json` | Lighting scenes (auto-generated via UI) |
+| `config/automations.json` | Automation rules + home location for the sun condition (edited via the Automations card or by hand; git-ignored, template in `config/automations.example.json`) |
 | `config/ir_devices.json` | Registered ESP32 IR transmitters (auto-generated via UI) |
 | `config/ir_receivers.json` | IR device configs — commands per device keyed by `config_key` (auto-generated via UI) |
 | `config/remotes.json` | Remote type definitions (type, name, brand) |
@@ -208,6 +211,52 @@ Each scene can be set to fire automatically:
 2. Click **+** to create a scene — give it a name, select WLED devices, and optionally configure a trigger
 3. Click the scene name to open the scene editor and add items (Set dimmer / Fade / Set light)
 4. Click the play button on any scene row to run it immediately
+
+## Automations
+
+The server runs simple automation rules on its own, so they keep working with no browser open and without Home Assistant. Rules live in `config/automations.json`. Edit them in the **Automations card** (edit mode: **+** to add, ✎ / ✕ per rule) or by hand; the file is watched and reloaded on save.
+
+Each rule has three parts:
+
+| Part | Options |
+|---|---|
+| **When** (trigger) | One or more MQTT topics change, optionally `from` and/or `to` a specific value. Fires only on a real change between two known values, so retained messages received at startup or on reconnect never fire a rule |
+| **Only if** (conditions) | **Sun**: dark (below the horizon) or light, calculated locally from `location.lat` / `location.lon` (no API needed). **Topic state**: a topic *is* / *is not* a value |
+| **Then** (actions, in order) | **Publish** a payload to a topic · **Wait for** a topic to reach a value (with a timeout; the rule stops if it doesn't arrive) · **Delay** N seconds |
+
+**Mode**: if a rule is triggered again while it is still running, it either ignores the new trigger (`single`, default) or cancels the running sequence and starts over (`restart`, for off-timers that should reset on every new detection).
+
+Example: shed light on when arriving in the dark, but only after the alarm has disarmed:
+
+```json
+{
+  "location": { "lat": 59.33, "lon": 18.06 },
+  "automations": [
+    {
+      "id": "shed_outdoor_on_arrive",
+      "name": "Shed outdoor light on when I come home in the dark",
+      "enabled": true,
+      "trigger": { "type": "mqtt", "topic": "homeassistant/person/me/state", "from": "not_home", "to": "home" },
+      "conditions": [ { "type": "sun", "state": "below_horizon" } ],
+      "actions": [
+        { "type": "wait_for", "topic": "homeassistant/alarm_control_panel/home_alarm/state", "equals": "disarmed", "timeout_s": 120 },
+        { "type": "publish", "topic": "esp32/switch/shed8a_1_outdoor/command", "payload": "ON" }
+      ]
+    }
+  ]
+}
+```
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/automations` | All rules with run state (`last_triggered`, `last_result`, `running`) and current sun elevation |
+| `POST /api/automations` | Create a rule (validated server-side) |
+| `PUT /api/automations/:id` | Replace a rule |
+| `PUT /api/automations/:id/enabled` | `{ "enabled": true \| false }` |
+| `DELETE /api/automations/:id` | Delete a rule |
+| `GET /api/topics` | All MQTT topics the server has seen (used for topic suggestions in the editor) |
+
+Run state is kept in `server/data/automations_state.json`; changes are pushed to open dashboards over the WebSocket (`automations-state`). The server log shows each run and why a rule did not run (e.g. `condition failed: sun 4° (light)`).
 
 ## WiiM Integration
 

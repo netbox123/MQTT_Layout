@@ -34,3 +34,6 @@ frontend/public/guiv2/qtloader.js
 
 # OS
 .DS_Store
+
+# Automations (contains home coordinates; template in automations.example.json)
+config/automations.json

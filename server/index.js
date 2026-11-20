@@ -17,6 +17,7 @@ import recipeRoutes from './recipeRoutes.js';
 import iptvRoutes from './iptvRoutes.js';
 import towRoutes from './towRoutes.js';
 import { startLgtvBridge, loadLgtvDevices } from './lgtvBridge.js';
+import { createAutomationEngine } from './automationEngine.js';
 
 // Kill any ffmpeg processes left over from a previous server session
 try {
@@ -1140,7 +1141,36 @@ function scheduleTimeTrigger() {
 scheduleTimeTrigger();
 
 // Create MQTT client and wire it to the WebSocket server
-const mqttClient = createMqttClient(pageConfigs, wsServer, checkEventTriggers);
+let automations = null;
+const mqttClient = createMqttClient(pageConfigs, wsServer, (topic, value) => {
+  checkEventTriggers(topic, value);
+  automations?.onMessage(topic, value);
+});
+
+// Server-side automations (config/automations.json)
+automations = createAutomationEngine({ mqttClient, wsServer });
+app.get('/api/automations', (_req, res) => res.json(automations.list()));
+app.put('/api/automations/:id/enabled', (req, res) => {
+  if (typeof req.body?.enabled !== 'boolean') return res.status(400).json({ error: 'enabled must be boolean' });
+  if (!automations.setEnabled(req.params.id, req.body.enabled)) return res.status(404).json({ error: 'not found' });
+  res.json({ ok: true });
+});
+app.post('/api/automations', (req, res) => {
+  const r = automations.create(req.body);
+  if (r.error) return res.status(400).json(r);
+  res.json(r);
+});
+app.put('/api/automations/:id', (req, res) => {
+  const r = automations.update(req.params.id, req.body);
+  if (r.error) return res.status(r.status ?? 400).json({ error: r.error });
+  res.json(r);
+});
+app.delete('/api/automations/:id', (req, res) => {
+  if (!automations.remove(req.params.id)) return res.status(404).json({ error: 'not found' });
+  res.json({ ok: true });
+});
+// All MQTT topics the server has seen (for topic suggestions in editors)
+app.get('/api/topics', (_req, res) => res.json(wsServer.knownTopics().sort()));
 
 // LG webOS TVs: Wake-on-LAN + local control socket over MQTT (lgtv/<id>/cmd).
 startLgtvBridge(loadMqttConfig());

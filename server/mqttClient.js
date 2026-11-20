@@ -127,9 +127,9 @@ export function createMqttClient(pageConfigs, wsServer, onMessage = null) {
       });
     },
 
-    publish(topic, payload) {
+    publish(topic, payload, { retain = false } = {}) {
       if (currentClient?.connected) {
-        currentClient.publish(topic, String(payload), { retain: false });
+        currentClient.publish(topic, String(payload), { retain });
         console.log(`[MQTT] Published to ${topic}: ${payload}`);
       } else {
         console.warn('[MQTT] Cannot publish — not connected');

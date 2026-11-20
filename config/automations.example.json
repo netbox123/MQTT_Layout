@@ -1,0 +1,57 @@
+{
+  "location": {
+    "lat": 59.33,
+    "lon": 18.06
+  },
+  "automations": [
+    {
+      "id": "shed_outdoor_on_arrive",
+      "name": "Shed outdoor light on when I come home in the dark",
+      "enabled": true,
+      "trigger": {
+        "type": "mqtt",
+        "topic": "homeassistant/person/martijn_heeroma/state",
+        "from": "not_home",
+        "to": "home"
+      },
+      "conditions": [
+        {
+          "type": "sun",
+          "state": "below_horizon"
+        }
+      ],
+      "actions": [
+        {
+          "type": "wait_for",
+          "topic": "homeassistant/alarm_control_panel/home_alarm/state",
+          "equals": "disarmed",
+          "timeout_s": 120
+        },
+        {
+          "type": "publish",
+          "topic": "esp32/switch/shed8a_1_outdoor/command",
+          "payload": "ON"
+        }
+      ]
+    },
+    {
+      "id": "shed_outdoor_off_leave",
+      "name": "Shed outdoor light off when I leave",
+      "enabled": true,
+      "trigger": {
+        "type": "mqtt",
+        "topic": "homeassistant/person/martijn_heeroma/state",
+        "from": "home",
+        "to": "not_home"
+      },
+      "conditions": [],
+      "actions": [
+        {
+          "type": "publish",
+          "topic": "esp32/switch/shed8a_1_outdoor/command",
+          "payload": "OFF"
+        }
+      ]
+    }
+  ]
+}

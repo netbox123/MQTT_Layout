@@ -47,6 +47,8 @@ function connect() {
         window.dispatchEvent(new CustomEvent('scene-trigger', { detail: { scene_id: msg.scene_id, auto: msg.auto } }));
       } else if (msg.type === 'scene-state') {
         window.dispatchEvent(new CustomEvent('scene-state', { detail: msg }));
+      } else if (msg.type === 'automations-state') {
+        window.dispatchEvent(new CustomEvent('automations-state', { detail: msg }));
       } else if (msg.topic !== undefined) {
         mqttStore.setTopicValue(msg.topic, msg.value);
         if (msg.topic.startsWith('ir/') && msg.topic.endsWith('/learned')) {
