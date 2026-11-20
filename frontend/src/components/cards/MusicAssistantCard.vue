@@ -96,7 +96,7 @@ const props = defineProps({
 });
 
 const ma = useMusicAssistant(
-  props.card.ma_url || 'http://192.168.0.20:8095',
+  props.card.ma_url || 'http://192.168.0.100:8095',
   props.card.ma_token || '',
 );
 
@@ -205,7 +205,7 @@ const progressPct = computed(() => duration.value ? Math.min(100, (localElapsed.
 const maArtUrl = computed(() => {
   const qItem = currentItem.value;
   const item  = currentTrack.value;
-  const base  = (props.card.ma_url || 'http://192.168.0.20:8095').replace(/\/$/, '');
+  const base  = (props.card.ma_url || 'http://192.168.0.100:8095').replace(/\/$/, '');
 
   function buildUrl(imgObj) {
     if (!imgObj) return '';

@@ -210,6 +210,8 @@ defineExpose({ openAdd });
 
 .url-row:last-of-type { border-bottom: none; }
 
+.url-row:hover { background: var(--bg-card-hover); }
+
 .url-icon {
   width: 14px;
   height: 14px;
@@ -220,21 +222,21 @@ defineExpose({ openAdd });
 .url-name {
   flex: 1;
   font-size: 0.78rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-decoration: none;
 }
 
-.url-name:hover { color: var(--text-primary); }
+.url-name:hover { color: #fff; }
 
 .url-open {
   width: 12px;
   height: 12px;
   flex-shrink: 0;
   color: var(--text-muted);
-  opacity: 0;
+  opacity: 0.35;
   transition: opacity 0.1s;
 }
 

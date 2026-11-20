@@ -46,25 +46,13 @@ const isOn = computed(() => {
 });
 
 function toggle() {
-  const next = isOn.value ? 'off' : 'on';
   const cmdTopic = props.card.command_topic?.trim();
-
-  // ESP32 boards migrated off HA publish/subscribe directly under esp32/...
-  // ESPHome's native MQTT light schema takes a JSON payload; switches take plain text.
-  if (cmdTopic?.startsWith('esp32/')) {
-    const payload = cmdTopic.includes('/light/')
-      ? JSON.stringify({ state: next.toUpperCase() })
-      : next.toUpperCase();
-    publish(cmdTopic, payload);
-    return;
-  }
-
-  const domain = props.card.ha_entity_id?.split('.')[0] ?? 'switch';
-  fetch(`/api/ha/service/${domain}/turn_${next}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ entity_id: props.card.ha_entity_id }),
-  }).catch(err => console.error('[HA] Toggle failed:', err));
+  if (!cmdTopic) return;
+  const next = isOn.value ? 'off' : 'on';
+  const payload = cmdTopic.includes('/light/')
+    ? JSON.stringify({ state: next.toUpperCase() })
+    : next.toUpperCase();
+  publish(cmdTopic, payload);
 }
 </script>
 
@@ -108,7 +96,7 @@ function toggle() {
 .switch-title {
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   letter-spacing: 0.04em;
   text-align: center;
   width: 100%;

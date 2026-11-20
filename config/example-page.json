@@ -29,8 +29,8 @@
     {
       "type": "switch",
       "title": "Living Light",
-      "mqtt_topic": "home/switch/living_light",
-      "ha_entity_id": "light.living_room",
+      "mqtt_topic": "home/switch/living_light/state",
+      "command_topic": "home/switch/living_light/command",
       "position": { "x": 5, "y": 3, "w": 2, "h": 2 },
       "mobile_show": true,
       "mobile_order": 2

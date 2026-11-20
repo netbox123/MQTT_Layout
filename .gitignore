@@ -6,13 +6,14 @@ frontend/dist/
 
 # Sensitive config files (use *.example.json as templates)
 config/mqtt.json
-config/homeassistant.json
 config/pages/
 
 # Runtime data
 config/notifications.json
 config/notification_events.json
+config/lgtv_devices.json
 logs/
+server/data/
 
 # Sounds (add your own)
 sounds/alert_sounds/*

@@ -62,6 +62,8 @@ function getValue(item) {
   border-bottom: none;
 }
 
+.entity-row:hover { background: var(--bg-card-hover); }
+
 .entity-icon {
   width: 16px;
   height: 16px;
@@ -72,7 +74,7 @@ function getValue(item) {
 .entity-title {
   flex: 1;
   font-size: 0.78rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

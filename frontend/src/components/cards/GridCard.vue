@@ -12,6 +12,17 @@
         :style="{ gridColumn: (item.col ?? 0) + 1, gridRow: (item.row ?? 0) + 1 }"
         @click="item.type === 'switch' ? toggle(item) : undefined"
       >
+        <button
+          v-if="item.history"
+          class="item-history-btn"
+          type="button"
+          title="History"
+          @click.stop="openHistory(item)"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3,17 9,11 13,15 21,5" />
+          </svg>
+        </button>
         <template v-if="item.type === 'gauge'">
           <div class="item-gauge-wrap">
             <div class="item-gauge-arc-wrap">
@@ -47,6 +58,14 @@
         </template>
       </div>
     </div>
+
+    <HistoryDialog
+      v-if="historyItem"
+      :topic="historyItem.mqtt_topic"
+      :title="historyItem.title"
+      :unit="historyItem.unit"
+      @close="historyItem = null"
+    />
   </div>
 </template>
 
@@ -55,16 +74,22 @@ export const icon = '▤';
 </script>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useMqttStore } from '../../stores/mqttStore.js';
 import { useMqtt } from '../../composables/useMqtt.js';
 import { ICON_MAP } from '../../utils/pageIcons.js';
+import HistoryDialog from '../dialogs/HistoryDialog.vue';
 
 const props = defineProps({
   card: { type: Object, required: true },
 });
 
 const { publish } = useMqtt();
+
+const historyItem = ref(null);
+function openHistory(item) {
+  historyItem.value = item;
+}
 
 const effectiveCols = computed(() => {
   const items = props.card.items ?? [];
@@ -132,28 +157,15 @@ function gaugeColor(item) {
   return 'var(--accent-red)';
 }
 
+// ESPHome's native MQTT light schema takes a JSON payload; switches take plain text.
 function toggle(item) {
-  const next = isOn(item) ? 'off' : 'on';
   const cmdTopic = item.command_topic?.trim();
-
-  // ESP32 boards migrated off HA publish/subscribe directly under esp32/...
-  // ESPHome's native MQTT light schema takes a JSON payload; switches take plain text.
-  if (cmdTopic?.startsWith('esp32/')) {
-    const payload = cmdTopic.includes('/light/')
-      ? JSON.stringify({ state: next.toUpperCase() })
-      : next.toUpperCase();
-    publish(cmdTopic, payload);
-    return;
-  }
-
-  const entityId = item.ha_entity_id?.trim();
-  if (!entityId) return;
-  const domain = entityId.split('.')[0] || 'switch';
-  fetch(`/api/ha/service/${domain}/turn_${next}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ entity_id: entityId }),
-  }).catch(err => console.error('[Grid] HA Toggle failed:', err));
+  if (!cmdTopic) return;
+  const next = isOn(item) ? 'off' : 'on';
+  const payload = cmdTopic.includes('/light/')
+    ? JSON.stringify({ state: next.toUpperCase() })
+    : next.toUpperCase();
+  publish(cmdTopic, payload);
 }
 </script>
 
@@ -175,6 +187,7 @@ function toggle(item) {
 }
 
 .grid-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -185,6 +198,11 @@ function toggle(item) {
   border-radius: 6px;
   cursor: default;
   overflow: hidden;
+  transition: background 0.15s;
+}
+
+.grid-item:hover {
+  background: var(--bg-card-hover);
 }
 
 .grid-item--sensor {
@@ -195,6 +213,35 @@ function toggle(item) {
 
 .grid-item--switch {
   cursor: pointer;
+}
+
+.item-history-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  opacity: 0.35;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.item-history-btn svg {
+  width: 100%;
+  height: 100%;
+}
+
+.grid-item:hover .item-history-btn {
+  opacity: 0.7;
+}
+
+.item-history-btn:hover {
+  opacity: 1;
+  color: var(--accent-blue);
 }
 
 .item-icon {
@@ -279,7 +326,7 @@ function toggle(item) {
 
 .item-title {
   font-size: 0.7rem;
-  color: #9aa3bc;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

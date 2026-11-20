@@ -103,7 +103,7 @@
           <div class="detail-btns">
             <button class="detail-btn" @click="openSetDimmer">Set dimmer</button>
             <button class="detail-btn" @click="openSetFade">Fade</button>
-            <button class="detail-btn" @click="openSetHaLight">Set HA light</button>
+            <button class="detail-btn" @click="openSetHaLight">Set light</button>
             <button class="detail-btn" @click="openSetRandom">Random</button>
           </div>
           <div class="items-list">
@@ -209,7 +209,7 @@
     </div>
   </Teleport>
 
-  <!-- Set HA light sub-dialog -->
+  <!-- Set light sub-dialog -->
   <Teleport to="body">
     <div v-if="haLightForm" class="dialog-backdrop ha-backdrop" @click.self="haLightForm = null">
       <div class="dialog ha-dialog">
@@ -629,7 +629,7 @@ async function patch(list) {
   await fetchScenes();
 }
 
-// ── Set HA light sub-dialog ───────────────────────────────────────────────────
+// ── Set light sub-dialog ───────────────────────────────────────────────────
 const haLightForm = ref(null);
 
 function openSetHaLight(item = null, index = null) {
@@ -638,35 +638,20 @@ function openSetHaLight(item = null, index = null) {
     duration: item?.duration ?? 1,
     editIndex: index,
     entities: haEntities.value.map(e => {
-      const match = existing.find(l => l.ha_entity_id === e.ha_entity_id);
+      const match = existing.find(l => l.command_topic === e.command_topic);
       return { ...e, selected: !!match, state: match?.state ?? 'ON' };
     }),
   };
 }
 
-function callHaService(ha_entity_id, state) {
-  if (!ha_entity_id) return;
-  const domain = ha_entity_id.split('.')[0];
-  const service = state === 'ON' ? 'turn_on' : 'turn_off';
-  fetch(`/api/ha/service/${domain}/${service}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ entity_id: ha_entity_id }),
-  }).catch(() => {});
-}
-
-// ESP32 boards migrated off HA publish/subscribe directly under esp32/...
 // ESPHome's native MQTT light schema takes a JSON payload; switches take plain text.
 function triggerLight(l) {
   const cmdTopic = l.command_topic?.trim();
-  if (cmdTopic?.startsWith('esp32/')) {
-    const payload = cmdTopic.includes('/light/')
-      ? JSON.stringify({ state: l.state })
-      : l.state;
-    publish(cmdTopic, payload);
-    return;
-  }
-  if (l.ha_entity_id) callHaService(l.ha_entity_id, l.state);
+  if (!cmdTopic) return;
+  const payload = cmdTopic.includes('/light/')
+    ? JSON.stringify({ state: l.state })
+    : l.state;
+  publish(cmdTopic, payload);
 }
 
 function confirmSetHaLight() {
@@ -675,13 +660,13 @@ function confirmSetHaLight() {
   if (!selected.length) { haLightForm.value = null; return; }
   const entry = {
     type: 'ha_light',
-    name: 'Set HA light',
+    name: 'Set light',
     duration,
-    lights: selected.map(e => ({ name: e.name, page: e.page, ha_entity_id: e.ha_entity_id, command_topic: e.command_topic, state: e.state })),
+    lights: selected.map(e => ({ name: e.name, page: e.page, command_topic: e.command_topic, state: e.state })),
   };
   if (editIndex !== null) detailScene.value.items.splice(editIndex, 1, entry);
   else detailScene.value.items.push(entry);
-  for (const e of selected) triggerLight({ ha_entity_id: e.ha_entity_id, command_topic: e.command_topic, state: e.state });
+  for (const e of selected) triggerLight({ command_topic: e.command_topic, state: e.state });
   haLightForm.value = null;
 }
 
@@ -1007,12 +992,12 @@ defineExpose({ openAdd });
 .scene-name {
   flex: 1;
   font-size: 0.8rem;
-  color: #e8eaf0;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
 }
-.scene-name:hover { text-decoration: underline; color: #fff; }
+.scene-name:hover { color: #fff; }
 
 .scene-duration {
   font-size: 0.7rem;

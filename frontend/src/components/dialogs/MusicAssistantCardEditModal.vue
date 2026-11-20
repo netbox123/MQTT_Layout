@@ -88,7 +88,7 @@ const props = defineProps({
 const emit = defineEmits(['save', 'cancel', 'delete']);
 
 const fields = reactive({
-  ma_url:         props.card.ma_url         || 'http://192.168.0.20:8095',
+  ma_url:         props.card.ma_url         || 'http://192.168.0.100:8095',
   ma_token:       props.card.ma_token       || '',
   lastfm_api_key: props.card.lastfm_api_key || '',
   player_id:      props.card.player_id      || '',

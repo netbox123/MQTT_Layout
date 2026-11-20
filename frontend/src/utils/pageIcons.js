@@ -21,7 +21,7 @@ import {
   // Nature & Outdoor
   mdiLeaf, mdiTree, mdiPineTree, mdiFlower,
   mdiWaves, mdiSprout, mdiGrass,
-  mdiWeatherSunny, mdiWeatherRainy, mdiWeatherSnowy,
+  mdiWeatherSunny, mdiWeatherRainy, mdiWeatherSnowy, mdiParagliding,
   // Media & Tech
   mdiTelevision, mdiMusicNote, mdiMonitor,
   mdiCellphone, mdiTablet, mdiSpeaker,
@@ -111,6 +111,7 @@ export const ICON_CATEGORIES = [
       { key: 'weather-sunny',     path: mdiWeatherSunny },
       { key: 'weather-rainy',     path: mdiWeatherRainy },
       { key: 'weather-snowy',     path: mdiWeatherSnowy },
+      { key: 'paragliding',       path: mdiParagliding },
     ],
   },
   {

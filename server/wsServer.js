@@ -11,6 +11,8 @@ export function createWsServer() {
 
   wss.on('connection', (ws, req) => {
     clients.add(ws);
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
     console.log(`[WS] Client connected from ${req.socket.remoteAddress}. Total: ${clients.size}`);
 
     // Send all known values to the new client immediately
@@ -27,8 +29,10 @@ export function createWsServer() {
     ws.on('message', (data) => {
       try {
         const msg = JSON.parse(data.toString());
-        if (msg.type === 'publish' && msg.topic) {
-          emitter.emit('frontend_publish', { topic: msg.topic, value: msg.value ?? '' });
+        if (msg.type === 'ping') {
+          ws.send(JSON.stringify({ type: 'pong' }));
+        } else if (msg.type === 'publish' && msg.topic) {
+          emitter.emit('frontend_publish', { topic: msg.topic, value: msg.value ?? '', retain: msg.retain === true });
         }
       } catch {
         console.warn('[WS] Invalid message from client:', data.toString());
@@ -45,6 +49,22 @@ export function createWsServer() {
       clients.delete(ws);
     });
   });
+
+  // Prune clients whose TCP connection died without a close/error event
+  // (e.g. laptop went to sleep) — a plain ws-protocol ping/pong, separate
+  // from the app-level ping/pong used by the frontend to detect the same
+  // thing on its side.
+  setInterval(() => {
+    for (const ws of clients) {
+      if (ws.isAlive === false) {
+        ws.terminate();
+        clients.delete(ws);
+        continue;
+      }
+      ws.isAlive = false;
+      ws.ping();
+    }
+  }, 30000);
 
   wss.broadcast = (payload) => {
     if (payload.topic !== undefined) {

@@ -1,0 +1,14 @@
+{
+  "operating_mode": "winchman",
+  "use_saved_calibration": false,
+  "cal_raw_zero": 0,
+  "cal_raw_100kg": 0,
+  "under_tree_height_reduction_pct": 42,
+  "start_reduction_pct": 60,
+  "treeheight_to_full_tow_ramp_s": 6,
+  "start_to_treeheight_ramp_s": 6,
+  "release_before_taking_in_s": 4,
+  "pid_kp": 0,
+  "pid_ki": 0,
+  "pid_kd": 0
+}

@@ -87,9 +87,9 @@ export function createMqttClient(pageConfigs, wsServer, onMessage = null) {
   connect(loadMqttConfig());
 
   // Handle publish requests from the frontend (switches, buttons)
-  wsServer.on('frontend_publish', ({ topic, value }) => {
+  wsServer.on('frontend_publish', ({ topic, value, retain = false }) => {
     if (currentClient?.connected) {
-      currentClient.publish(topic, String(value), { retain: false });
+      currentClient.publish(topic, String(value), { retain });
       console.log(`[MQTT] Published to ${topic}: ${value}`);
     } else {
       console.warn('[MQTT] Cannot publish — not connected');

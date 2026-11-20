@@ -169,9 +169,38 @@ onUnmounted(() => clearInterval(pollTimer));
 
 .vol-slider {
   flex: 1;
-  height: 4px;
-  accent-color: #5090d0;
+  height: 12px;
   cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+.vol-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #5090d0;
+}
+.vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border: none;
+  border-radius: 50%;
+  background: var(--text-primary);
+}
+.vol-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #5090d0;
+}
+.vol-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: var(--text-primary);
 }
 
 .vol-value {
@@ -187,7 +216,7 @@ onUnmounted(() => clearInterval(pollTimer));
   display: flex;
   gap: 0.3rem;
   flex-wrap: wrap;
-  margin-top: 1.2rem;
+  margin-top: 0.575rem;
 }
 
 .input-btn {

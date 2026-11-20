@@ -77,8 +77,6 @@
             <template v-if="selectedItem.type === 'switch'">
               <label class="field-label">command topic</label>
               <input class="field-input" v-model="selectedItem.command_topic" />
-              <label class="field-label">ha entity id</label>
-              <input class="field-input" v-model="selectedItem.ha_entity_id" />
             </template>
 
             <template v-if="selectedItem.type === 'sensor'">
@@ -95,6 +93,18 @@
               <input class="field-input" type="number" v-model.number="selectedItem.max" />
               <label class="field-label">unit</label>
               <input class="field-input" v-model="selectedItem.unit" />
+            </template>
+
+            <template v-if="selectedItem.type === 'sensor' || selectedItem.type === 'gauge'">
+              <label class="field-label">history</label>
+              <label class="field-checkbox">
+                <input type="checkbox" v-model="selectedItem.history" />
+                <span>{{ selectedItem.history ? 'Logged' : 'Off' }}</span>
+              </label>
+              <template v-if="selectedItem.history">
+                <label class="field-label">round to</label>
+                <input class="field-input" type="number" min="0" step="any" v-model.number="selectedItem.history_round" />
+              </template>
             </template>
           </div>
 
@@ -184,7 +194,7 @@ function selectCell(col, row) {
   selectedCol.value = col;
   selectedRow.value = row;
   if (!getItem(col, row)) {
-    local.items.push({ col, row, type: 'sensor', title: '', mqtt_topic: '', icon: '', unit: '', round: 1, min: 0, max: 100, command_topic: '', ha_entity_id: '' });
+    local.items.push({ col, row, type: 'sensor', title: '', mqtt_topic: '', icon: '', unit: '', round: 1, min: 0, max: 100, command_topic: '', history: false, history_round: 1 });
   }
 }
 
@@ -205,9 +215,13 @@ function save() {
     position: { x: local.position.x, y: local.position.y, w: local.position.w, h: local.position.h },
     items: local.items.map(item => {
       const base = { col: item.col, row: item.row, type: item.type, title: item.title, mqtt_topic: item.mqtt_topic, icon: item.icon };
-      if (item.type === 'switch') { base.command_topic = item.command_topic; base.ha_entity_id = item.ha_entity_id; }
+      if (item.type === 'switch') { base.command_topic = item.command_topic; }
       if (item.type === 'sensor') { base.icon = 'chip'; base.unit = item.unit; base.round = item.round ?? 1; }
       if (item.type === 'gauge') { base.icon = 'gauge'; base.min = item.min ?? 0; base.max = item.max ?? 100; base.unit = item.unit; }
+      if (item.type === 'sensor' || item.type === 'gauge') {
+        base.history = !!item.history;
+        if (base.history) base.history_round = item.history_round ?? 1;
+      }
       return base;
     }),
   };

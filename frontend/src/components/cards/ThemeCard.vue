@@ -313,7 +313,7 @@ defineExpose({ openAdd });
 .theme-name {
   flex: 1;
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
 }

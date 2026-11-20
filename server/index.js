@@ -9,12 +9,14 @@ import { fileURLToPath } from 'url';
 import { loadAllPageConfigs } from './configLoader.js';
 import mqtt from 'mqtt';
 import { createMqttClient, loadMqttConfig, saveMqttConfig } from './mqttClient.js';
+import { record as recordHistory, query as queryHistory } from './historyStore.js';
 import { createWsServer } from './wsServer.js';
 import net from 'net';
 import { handleCameraStream, handleCameraSnapshot } from './cameraProxy.js';
 import recipeRoutes from './recipeRoutes.js';
 import iptvRoutes from './iptvRoutes.js';
-import { startBroadlinkBridge } from './broadlinkBridge.js';
+import towRoutes from './towRoutes.js';
+import { startLgtvBridge, loadLgtvDevices } from './lgtvBridge.js';
 
 // Kill any ffmpeg processes left over from a previous server session
 try {
@@ -26,14 +28,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.json());
 const httpServer = createServer(app);
-
-function loadHaConfig() {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(__dirname, '../config/homeassistant.json'), 'utf-8'));
-  } catch {
-    return {};
-  }
-}
 
 // Scan sound directories at startup
 const soundsRoot = path.join(__dirname, '../sounds');
@@ -293,6 +287,7 @@ app.get('/api/camera/stream', handleCameraStream);
 app.get('/api/camera/snapshot', handleCameraSnapshot);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/iptv', iptvRoutes);
+app.use('/api/tows', towRoutes);
 
 // WLED devices JSON — read/write
 const wledDevicesPath = path.join(__dirname, '../config/wled_devices.json');
@@ -300,6 +295,30 @@ function loadWledDevices() {
   try { return JSON.parse(fs.readFileSync(wledDevicesPath, 'utf-8')); } catch { return []; }
 }
 app.get('/api/wled-devices', (req, res) => res.json(loadWledDevices()));
+
+// WLED effect list — fetched once from the first reachable device, then cached.
+// fxdata is parsed by splitting on '","' because WLED's JSON there isn't always valid.
+let wledEffectsCache = null;
+app.get('/api/wled-effects', async (req, res) => {
+  if (wledEffectsCache) return res.json(wledEffectsCache);
+  for (const d of loadWledDevices()) {
+    if (!d.ip) continue;
+    try {
+      const opts = { signal: AbortSignal.timeout(3000) };
+      const names = await (await fetch(`http://${d.ip}/json/eff`, opts)).json();
+      const raw = (await (await fetch(`http://${d.ip}/json/fxdata`, opts)).text()).trim();
+      const fxdata = raw.slice(2, -2).split('","');
+      wledEffectsCache = names
+        .map((name, id) => {
+          const flags = (fxdata[id] ?? '').split(';')[3] ?? '';
+          return { id, name, audio: /[vf]/.test(flags) };
+        })
+        .filter(e => e.name && e.name !== 'RSVD' && e.name !== '-');
+      return res.json(wledEffectsCache);
+    } catch { /* try next device */ }
+  }
+  res.status(502).json({ error: 'No WLED device reachable' });
+});
 app.patch('/api/wled-devices', (req, res) => {
   try {
     fs.writeFileSync(wledDevicesPath, JSON.stringify(req.body, null, 2));
@@ -408,17 +427,16 @@ app.patch('/api/scenes', (req, res) => {
   }
 });
 
-// HA entities — scan all pages for switch cards
+// Switch cards — scan all pages, used by the Scenes card's entity picker
 function collectSwitchCards(cards, pageName, out, seen) {
   for (const card of (cards ?? [])) {
     if (card.type === 'switch' && card.mqtt_topic) {
       if (!seen.has(card.mqtt_topic)) {
         seen.add(card.mqtt_topic);
         out.push({
-          name: card.title ?? card.ha_entity_id ?? card.mqtt_topic,
+          name: card.title ?? card.mqtt_topic,
           page: pageName,
           command_topic: card.command_topic ?? card.mqtt_topic.replace(/\/state$/, '/set'),
-          ha_entity_id: card.ha_entity_id ?? null,
         });
       }
     }
@@ -432,6 +450,101 @@ app.get('/api/ha-entities', (req, res) => {
   const seen = new Set();
   for (const page of configs) collectSwitchCards(page.cards, page.name, out, seen);
   res.json(out);
+});
+
+// GIGA boot config JSON — read/write (ESP32 mainboard boot-time cmd fields, prepared ahead of
+// the GIGA hardware/firmware existing; see Paraglider-tow-winch docs/software.md)
+const gigaConfigPath = path.join(__dirname, '../config/giga_boot_config.json');
+app.get('/api/giga-config', (_req, res) => {
+  try { res.json(JSON.parse(fs.readFileSync(gigaConfigPath, 'utf-8'))); }
+  catch { res.json({}); }
+});
+app.patch('/api/giga-config', (req, res) => {
+  try {
+    fs.writeFileSync(gigaConfigPath, JSON.stringify(req.body, null, 2));
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GIGA connection (locked/static IP) + sync — dashboard talks directly to the GIGA over the
+// home network once it exists. The GIGA side of this contract isn't written yet (firmware not
+// started), but is defined here ahead of time: GET /api/ping (plain reachability check),
+// GET /api/config (same shape as giga_boot_config.json above), GET /api/tows (array of tow
+// records, each shaped like the ones this dashboard already stores under config/tows/*.json,
+// `id` in ddmmyyyyhhmm format), and PATCH /api/config to accept a pushed config.
+const gigaConnectionPath = path.join(__dirname, '../config/giga_connection.json');
+function loadGigaConnection() {
+  try { return JSON.parse(fs.readFileSync(gigaConnectionPath, 'utf-8')); } catch { return { ip: '' }; }
+}
+app.get('/api/giga-connection', (_req, res) => res.json(loadGigaConnection()));
+app.patch('/api/giga-connection', (req, res) => {
+  try {
+    fs.writeFileSync(gigaConnectionPath, JSON.stringify(req.body, null, 2));
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+async function fetchGiga(urlPath, options = {}, timeoutMs = 3000) {
+  const { ip } = loadGigaConnection();
+  if (!ip) throw new Error('No GIGA IP configured');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(`http://${ip}${urlPath}`, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+app.get('/api/giga-sync/status', async (_req, res) => {
+  try {
+    const r = await fetchGiga('/api/ping', {}, 2000);
+    res.json({ reachable: r.ok });
+  } catch {
+    res.json({ reachable: false });
+  }
+});
+
+app.post('/api/giga-sync/pull', async (_req, res) => {
+  try {
+    let configUpdated = false;
+    const configRes = await fetchGiga('/api/config');
+    if (configRes.ok) {
+      fs.writeFileSync(gigaConfigPath, JSON.stringify(await configRes.json(), null, 2));
+      configUpdated = true;
+    }
+    let towsImported = 0, towsSkipped = 0;
+    const towsRes = await fetchGiga('/api/tows');
+    if (towsRes.ok) {
+      const towsDir = path.join(__dirname, '../config/tows');
+      fs.mkdirSync(towsDir, { recursive: true });
+      for (const tow of await towsRes.json()) {
+        if (!tow.id) continue;
+        const file = path.join(towsDir, `${tow.id}.json`);
+        if (fs.existsSync(file)) { towsSkipped++; continue; }
+        fs.writeFileSync(file, JSON.stringify(tow, null, 2));
+        towsImported++;
+      }
+    }
+    res.json({ ok: true, configUpdated, towsImported, towsSkipped });
+  } catch (err) {
+    res.status(502).json({ error: 'Could not reach GIGA: ' + err.message });
+  }
+});
+
+app.post('/api/giga-sync/push', async (_req, res) => {
+  try {
+    const config = JSON.parse(fs.readFileSync(gigaConfigPath, 'utf-8'));
+    const r = await fetchGiga('/api/config', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!r.ok) throw new Error(`GIGA responded ${r.status}`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(502).json({ error: 'Could not reach GIGA: ' + err.message });
+  }
 });
 
 // Themes JSON — read/write
@@ -484,30 +597,6 @@ app.get('/api/wiim/proxy', (req, res) => {
   );
   request.on('error', e => res.status(503).json({ error: e.message }));
   request.end();
-});
-
-// Home Assistant service proxy — keeps the HA token off the browser
-app.post('/api/ha/service/:domain/:service', async (req, res) => {
-  const ha = loadHaConfig();
-  if (!ha.url || !ha.token) {
-    return res.status(503).json({ error: 'Home Assistant not configured' });
-  }
-  const url = `${ha.url}/api/services/${req.params.domain}/${req.params.service}`;
-  try {
-    const haRes = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${ha.token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(req.body),
-    });
-    const text = await haRes.text();
-    res.status(haRes.status).send(text);
-  } catch (err) {
-    console.error('[HA] Service call failed:', err.message);
-    res.status(502).json({ error: err.message });
-  }
 });
 
 // Serve compiled frontend in production
@@ -691,23 +780,6 @@ function broadcastSceneState() {
   wsServer.broadcast(payload);
 }
 
-async function callHaServiceServer(entityId, state) {
-  if (!entityId) return;
-  const ha = loadHaConfig();
-  if (!ha.url || !ha.token) return;
-  const domain = entityId.split('.')[0] || 'light';
-  const service = String(state ?? '').toUpperCase() === 'ON' ? 'turn_on' : 'turn_off';
-  try {
-    await fetch(`${ha.url}/api/services/${domain}/${service}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${ha.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entity_id: entityId }),
-    });
-  } catch (e) {
-    console.error('[Scenes] HA call failed:', e.message);
-  }
-}
-
 // Runs a scene immediately with no queue logic — sets activeSceneState
 // fromElapsed: seconds already elapsed (for resuming a paused scene mid-way)
 function runScene(scene, fromElapsed = 0) {
@@ -758,17 +830,14 @@ function runScene(scene, fromElapsed = 0) {
       }, delay));
     } else if (item.type === 'ha_light') {
       const lights = [...(item.lights ?? [])];
-      timers.push(setTimeout(async () => {
+      timers.push(setTimeout(() => {
         for (const light of lights) {
           const cmdTopic = light.command_topic?.trim();
-          if (cmdTopic?.startsWith('esp32/')) {
-            const payload = cmdTopic.includes('/light/')
-              ? JSON.stringify({ state: light.state })
-              : light.state;
-            mqttClient.publish(cmdTopic, payload);
-          } else {
-            await callHaServiceServer(light.ha_entity_id, light.state);
-          }
+          if (!cmdTopic) continue;
+          const payload = cmdTopic.includes('/light/')
+            ? JSON.stringify({ state: light.state })
+            : light.state;
+          mqttClient.publish(cmdTopic, payload);
         }
       }, delay));
     } else if (item.type === 'random') {
@@ -906,9 +975,26 @@ app.post('/api/scenes/:id/execute', (req, res) => {
 // ── MQTT event trigger ────────────────────────────────────────────────────
 const topicLastValues = new Map();  // topic → last value seen
 
+// Grid items opt into history logging via `history: true` (+ optional
+// `history_round` step, e.g. 1 for whole-degree temps). Returns the round
+// step (possibly undefined/null) if the topic is history-enabled, else null.
+function findHistoryConfig(topic) {
+  for (const page of pageConfigs) {
+    for (const card of (page.cards ?? [])) {
+      if (card.type !== 'grid') continue;
+      const item = (card.items ?? []).find(i => i.mqtt_topic === topic);
+      if (item?.history) return { round: item.history_round };
+    }
+  }
+  return null;
+}
+
 function checkEventTriggers(topic, value) {
   const prev = topicLastValues.get(topic);  // undefined on first message
   topicLastValues.set(topic, value);
+
+  const historyConfig = findHistoryConfig(topic);
+  if (historyConfig) recordHistory(topic, value, historyConfig.round);
 
   // Track WLED API colors for server-side fade start colors
   const wledApiMatch = topic.match(/^wled\/([^/]+)\/api$/);
@@ -1009,6 +1095,18 @@ function checkEventTriggers(topic, value) {
   }
 }
 
+// ── History ────────────────────────────────────────────────────────────────
+app.get('/api/history', (req, res) => {
+  const { topic, hours } = req.query;
+  if (!topic) return res.status(400).json({ error: 'topic is required' });
+  try {
+    const sinceMs = Date.now() - (parseFloat(hours) || 24) * 3600_000;
+    res.json({ points: queryHistory(topic, sinceMs) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Scene time trigger ────────────────────────────────────────────────────────
 function checkSceneTimeTriggers() {
   const now = new Date();
@@ -1044,6 +1142,9 @@ scheduleTimeTrigger();
 // Create MQTT client and wire it to the WebSocket server
 const mqttClient = createMqttClient(pageConfigs, wsServer, checkEventTriggers);
 
+// LG webOS TVs: Wake-on-LAN + local control socket over MQTT (lgtv/<id>/cmd).
+startLgtvBridge(loadMqttConfig());
+
 // Victron topic republisher: FlashMQ bridges N/# to .20 without prefix.
 // Re-publish as victron/N/# so HA integrations need no changes.
 // Also forward victron/R/# → R/# so HA keepalives reach the FlashMQ bridge.
@@ -1073,8 +1174,6 @@ const mqttClient = createMqttClient(pageConfigs, wsServer, checkEventTriggers);
   client.on('error', (err) => console.error('[Victron] Republisher error:', err.message));
 })();
 
-startBroadlinkBridge(loadMqttConfig(), loadHaConfig());
-
 function sceneTriggerTopics() {
   return [...new Set(loadScenes().filter(s => s.trigger === 'mqtt' && s.trigger_mqtt_topic).map(s => s.trigger_mqtt_topic))];
 }
@@ -1086,6 +1185,7 @@ setTimeout(() => {
   const sceneTopics = sceneTriggerTopics();
   if (sceneTopics.length) mqttClient.subscribeTopics(sceneTopics);
   if (loadWledDevices().length) mqttClient.subscribeTopics(['wled/#']);
+  if (loadLgtvDevices().length) mqttClient.subscribeTopics(['lgtv/#']);
   mqttClient.subscribeTopics(['ir/#']);
 }, 2000);
 

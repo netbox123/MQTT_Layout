@@ -188,7 +188,7 @@ function queueItemArt(item) {
     || track?.album?.image
     || track?.album?.metadata?.images?.[0];
   if (!imgObj?.proxy_id) return '';
-  const base = (props.maUrl || 'http://192.168.0.20:8095').replace(/\/$/, '');
+  const base = (props.maUrl || 'http://192.168.0.100:8095').replace(/\/$/, '');
   const maArt = `${base}/imageproxy/${imgObj.proxy_id}?size=80`;
   return `/api/imageproxy?url=${encodeURIComponent(maArt)}`;
 }
@@ -278,7 +278,7 @@ async function fetchRadioStations() {
 watch(activeTab, tab => { if (tab === 'radio') fetchRadioStations(); });
 
 function radioArt(station) {
-  const base = (props.maUrl || 'http://192.168.0.20:8095').replace(/\/$/, '');
+  const base = (props.maUrl || 'http://192.168.0.100:8095').replace(/\/$/, '');
   const imgObj = station.metadata?.images?.[0];
   if (!imgObj?.proxy_id) return '';
   const maArt = `${base}/imageproxy/${imgObj.proxy_id}?size=80`;

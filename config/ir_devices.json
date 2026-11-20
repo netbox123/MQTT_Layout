@@ -1,10 +1,5 @@
 [
   {
-    "name": "Living room IR",
-    "id": "rm-mini",
-    "ip": "192.168.0.9"
-  },
-  {
     "name": "IR 56",
     "id": "ir-56",
     "ip": "192.168.0.56"

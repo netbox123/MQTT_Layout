@@ -15,7 +15,7 @@ A local-first, MQTT-driven home automation dashboard built with **Vue 3 + Expres
   - Edge detection: fires only when a value *crosses* a threshold (not on every message)
   - String equality trigger (`= ON`) for binary sensors (e.g. motion detection)
 - **Victron integration** — solar, battery, inverter data via MQTT; Victron GX GUI v2 proxied and made available outside the local network via Caddy
-- **ESP32 direct MQTT** — switches, lights and sensors on ESPHome boards publish/subscribe straight to the broker, no Home Assistant round-trip; a minimal HA REST fallback remains only for HA-only virtual entities (e.g. `input_boolean` helpers) — see [ESP32 Direct MQTT](#esp32-direct-mqtt) below
+- **ESP32 direct MQTT** — switches, lights and sensors on ESPHome boards publish/subscribe straight to the broker, no Home Assistant round-trip — see [ESP32 Direct MQTT](#esp32-direct-mqtt) below
 - **URL launcher** — categorised links with tab navigation
 - **Recipe viewer** — stored locally, no external services
 - **Mobile layout** — dedicated responsive view at `/m/<page-slug>` with per-card mobile visibility and ordering
@@ -49,10 +49,9 @@ cd mqtt-dashboard
 
 ```bash
 cp config/mqtt.example.json config/mqtt.json
-cp config/homeassistant.example.json config/homeassistant.json
 ```
 
-Edit both files with your broker and HA credentials. Then create your first page by copying the example:
+Edit it with your broker credentials. Then create your first page by copying the example:
 
 ```bash
 cp config/pages/example-page.json config/pages/living-room.json
@@ -88,7 +87,7 @@ These are served at `/sounds/` and used by the notification system.
 |---|---|
 | `sensor` | Numeric MQTT value with unit |
 | `gauge` | Arc gauge with min/max/color thresholds |
-| `switch` | Toggle via MQTT (falls back to Home Assistant only if no MQTT command topic is configured) |
+| `switch` | Toggle via MQTT — publishes to `command_topic` (JSON for lights, plain text for switches) |
 | `indicator` | On/off state indicator |
 | `button` | Publish a fixed MQTT payload |
 | `text` | Display any MQTT string value |
@@ -137,7 +136,6 @@ Each event links to a notification rule that defines the title, message, and sou
 | File | Description |
 |---|---|
 | `config/mqtt.json` | MQTT broker connection settings |
-| `config/homeassistant.json` | HA URL and long-lived token |
 | `config/pages/*.json` | Page and card layouts |
 | `config/urls.json` | URL launcher categories and links |
 | `config/wled_devices.json` | Registered WLED dimmers (id, name, IP) |
@@ -175,7 +173,7 @@ Color changes publish a JSON payload to `wled/{id}/api`:
 
 ## Scenes
 
-The **Scenes card** lets you build and play multi-step lighting sequences across WLED dimmers and Home Assistant lights.
+The **Scenes card** lets you build and play multi-step lighting sequences across WLED dimmers and MQTT-controlled lights/switches.
 
 ### Scene items
 
@@ -184,7 +182,7 @@ The **Scenes card** lets you build and play multi-step lighting sequences across
 | **Set dimmer** | Instantly sets all scene WLED devices to an RGBW color (`transition: 0`) |
 | **Fade** | Smoothly fades from the current color to a target RGBW color; calculated in 1-second steps with `transition: 9` (no WLED 65 s limit) |
 | **Random** | Continuously fades between randomly generated RGBW colors. Choose which channels (R/G/B/W) randomize, set a base color, a **speed** (seconds between targets) and a **random** deviation (±1–255). Interpolated in 1-second steps for smooth transitions |
-| **Set HA light** | Turns one or more lights/switches ON or OFF — publishes MQTT directly if the entity has an `esp32/...` command topic, otherwise falls back to the HA service API |
+| **Set light** | Turns one or more MQTT-controlled lights/switches ON or OFF — publishes directly to each entity's `command_topic` |
 
 ### Scene queue
 
@@ -208,7 +206,7 @@ Each scene can be set to fire automatically:
 
 1. Add a **Scenes card** to a dashboard page
 2. Click **+** to create a scene — give it a name, select WLED devices, and optionally configure a trigger
-3. Click the scene name to open the scene editor and add items (Set dimmer / Fade / Set HA light)
+3. Click the scene name to open the scene editor and add items (Set dimmer / Fade / Set light)
 4. Click the play button on any scene row to run it immediately
 
 ## WiiM Integration
@@ -265,7 +263,7 @@ mqtt:
 
 ### Dashboard side
 
-Card config uses two separate fields: `mqtt_topic` for what to display (state), `command_topic` for where to publish when toggled. Toggle logic (`GridCard.vue`, `SwitchCard.vue`, and the Scenes card's light-trigger) publishes MQTT directly whenever `command_topic` starts with `esp32/`, branching on JSON vs. plain payload by component type — and falls back to the legacy HA REST API (`ha_entity_id` → `/api/ha/service/{domain}/turn_on|off`) only for entities with no MQTT command topic, such as HA-only `input_boolean` helpers.
+Card config uses two separate fields: `mqtt_topic` for what to display (state), `command_topic` for where to publish when toggled. Toggle logic (`GridCard.vue`, `SwitchCard.vue`, and the Scenes card's light-trigger) publishes MQTT directly to `command_topic`, branching on JSON vs. plain payload by whether the topic is under `/light/`. There's no Home Assistant fallback — every togglable entity needs a real MQTT command topic.
 
 > **Deploy note:** the backend loads `config/pages/*.json` into memory once at startup and builds its MQTT subscription list from that snapshot — editing the JSON on disk needs a server restart to take effect. The frontend is served from the built `frontend/dist/` bundle, not source — editing `.vue` files needs `npm run build` before changes show up in the browser.
 

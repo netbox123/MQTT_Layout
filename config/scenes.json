@@ -14,7 +14,7 @@
     "items": [
       {
         "type": "ha_light",
-        "name": "Set HA light",
+        "name": "Set light",
         "duration": 1,
         "lights": [
           {
@@ -143,7 +143,7 @@
       },
       {
         "type": "ha_light",
-        "name": "Set HA light",
+        "name": "Set light",
         "duration": 2.9,
         "lights": [
           {
@@ -305,16 +305,16 @@
     "id": 1778356733465
   },
   {
-    "name": "Time 20:30",
+    "name": "Time 17:30",
     "devices": [
       "c18cbc",
       "c18c34"
     ],
-    "trigger": "",
+    "trigger": "time",
     "trigger_mqtt_topic": "",
     "trigger_condition": "=",
     "trigger_value": "",
-    "trigger_time": "",
+    "trigger_time": "17:30",
     "trigger_days": [
       0,
       1,
@@ -324,17 +324,6 @@
       5,
       6
     ],
-
-
-
-
-
-
-
-
-
-
-    
     "id": 1778356948289,
     "_key": "1778356948289",
     "_slot": "idle",
@@ -347,9 +336,6 @@
         "b": 0,
         "w": 156,
         "duration": 1
-
-
-
       }
     ]
   }

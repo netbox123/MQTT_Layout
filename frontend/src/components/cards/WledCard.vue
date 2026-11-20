@@ -4,6 +4,18 @@
       <svg viewBox="0 0 24 24" fill="currentColor" class="header-icon"><path :d="mdiLightbulbGroup" /></svg>
       {{ card.title || 'WLED' }}
       <div v-if="cardDevices.length" class="scene-btns">
+        <select class="fx-select" title="Effect" :value="currentFx" @change="setEffect($event)">
+          <option :value="0">None</option>
+          <option v-if="currentFx && !usable.some(e => e.id === currentFx)" :value="currentFx">
+            {{ effects.find(e => e.id === currentFx)?.name ?? `Effect ${currentFx}` }}
+          </option>
+          <optgroup v-if="audioEffects.length" label="♪ Sound reactive">
+            <option v-for="e in audioEffects" :key="e.id" :value="e.id">♪ {{ e.name }}</option>
+          </optgroup>
+          <optgroup v-if="otherEffects.length" label="Effects">
+            <option v-for="e in otherEffects" :key="e.id" :value="e.id">{{ e.name }}</option>
+          </optgroup>
+        </select>
         <button class="scene-btn" title="Save scene" @click="saveScene">Save</button>
         <button class="scene-btn" title="Recall saved scene" @click="recallScene">Recall</button>
       </div>
@@ -13,14 +25,14 @@
       <div class="sliders">
         <div v-for="ch in channels" :key="ch.key" class="slider-row">
           <button class="sl-btn" @click="setChannel(ch, 0)">{{ ch.label }}</button>
-          <input type="range" class="sl-range" :style="{ accentColor: ch.color }"
+          <input type="range" class="sl-range" :style="{ '--track-color': ch.color }"
             min="0" max="255" step="1" :value="ch.val.value"
             @input="onInput(ch, $event)" @change="onChange(ch, $event)" />
           <button class="sl-btn sl-btn--val" @click="setChannel(ch, 255)">{{ ch.val.value }}</button>
         </div>
       </div>
       <div class="preview">
-        <div class="color-circle" :style="{ background: previewColor }" title="Apply to all devices" @click="publishAll"></div>
+        <div class="color-circle" :style="{ background: previewColor }" title="Apply colour to all devices (effect off)" @click="publishAll({ solid: true })"></div>
       </div>
     </div>
   </div>
@@ -31,7 +43,7 @@ export const icon = '💡';
 </script>
 
 <script setup>
-import { ref, computed, inject } from 'vue';
+import { ref, computed, inject, onMounted } from 'vue';
 import { mdiLightbulbGroup } from '@mdi/js';
 import { useMqttStore } from '../../stores/mqttStore.js';
 import { useMqtt } from '../../composables/useMqtt.js';
@@ -61,6 +73,47 @@ function isOnline(d) {
   return mqttStore.topicValues[`wled/${d.id}/status`] === 'online';
 }
 
+// Effects: list comes from the server (cached WLED /json/eff); 0 = Solid = "None".
+const effects = ref([]);
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/wled-effects');
+    if (res.ok) effects.value = await res.json();
+  } catch { /* dropdown just shows None */ }
+});
+// The lights are single-pixel RGBW (non-addressable), so only effects that change
+// the colour/brightness of the whole light are offered. Edit this list to add more.
+const SINGLE_LED_FX = new Set([
+  'Blink', 'Breathe', 'Random Colors', 'Colorloop', 'Rainbow', 'Fade', 'Strobe',
+  'Strobe Rainbow', 'Blink Rainbow', 'Fire Flicker', 'Lightning', 'Candle',
+  'Heartbeat', 'Sunrise', 'Dynamic Smooth',
+  // sound reactive
+  'Freqwave', 'DJ Light', 'Freqmap', 'Freqpixels', 'Gravcenter', 'Noisemeter',
+  'Pixels', 'Puddlepeak', 'Noisefire', 'Ripple Peak',
+]);
+const usable = computed(() => effects.value.filter(e => SINGLE_LED_FX.has(e.name)));
+const byName = (a, b) => a.name.localeCompare(b.name);
+const audioEffects = computed(() => usable.value.filter(e => e.audio).sort(byName));
+const otherEffects = computed(() => usable.value.filter(e => !e.audio).sort(byName));
+
+// Current effect of the first online device, from WLED's MQTT state XML (wled/<id>/v).
+const currentFx = computed(() => {
+  for (const d of cardDevices.value) {
+    if (!isOnline(d)) continue;
+    const m = /<fx>(\d+)<\/fx>/.exec(mqttStore.topicValues[`wled/${d.id}/v`] ?? '');
+    if (m) return parseInt(m[1]);
+  }
+  return 0;
+});
+
+function setEffect(e) {
+  const fx = parseInt(e.target.value);
+  for (const d of cardDevices.value) {
+    if (!isOnline(d)) continue;
+    publish(`wled/${d.id}/api`, JSON.stringify({ on: true, seg: [{ fx }] }));
+  }
+}
+
 const previewColor = computed(() => {
   const pr = Math.min(255, r.value + w.value);
   const pg = Math.min(255, g.value + w.value);
@@ -68,13 +121,13 @@ const previewColor = computed(() => {
   return `rgb(${pr}, ${pg}, ${pb})`;
 });
 
-function publishAll() {
+// solid: also switch the effect off (fx 0), used by the colour circle.
+function publishAll({ solid = false } = {}) {
+  const seg = { col: [[r.value, g.value, b.value, w.value]] };
+  if (solid) seg.fx = 0;
   for (const d of cardDevices.value) {
     if (!isOnline(d)) continue;
-    publish(`wled/${d.id}/api`, JSON.stringify({
-      on: true, bri: 255,
-      seg: [{ col: [[r.value, g.value, b.value, w.value]] }],
-    }));
+    publish(`wled/${d.id}/api`, JSON.stringify({ on: true, bri: 255, seg: [seg] }));
   }
 }
 
@@ -105,7 +158,7 @@ function recallScene() {
   g.value = s.g ?? 255;
   b.value = s.b ?? 255;
   w.value = s.w ?? 0;
-  publishAll();
+  publishAll({ solid: true });
 }
 </script>
 
@@ -173,7 +226,7 @@ function recallScene() {
   border-radius: 4px;
   border: 1px solid var(--border);
   background: transparent;
-  color: #fff;
+  color: var(--text-primary);
   cursor: pointer;
   flex-shrink: 0;
   line-height: 1.4;
@@ -184,9 +237,39 @@ function recallScene() {
 
 .sl-range {
   flex: 1;
-  height: 4px;
-  cursor: pointer;
   min-width: 0;
+  height: 12px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+.sl-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--track-color, var(--border));
+}
+.sl-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border: none;
+  border-radius: 50%;
+  background: var(--text-primary);
+}
+.sl-range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--track-color, var(--border));
+}
+.sl-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: var(--text-primary);
 }
 
 .preview {
@@ -215,6 +298,21 @@ function recallScene() {
   transition: color 0.12s, border-color 0.12s;
 }
 .scene-btn:hover { color: var(--text-primary); border-color: #5090d0; }
+
+.fx-select {
+  font-size: 0.58rem;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 0.05rem 0.2rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  max-width: 7.5rem;
+  outline: none;
+}
+.fx-select:hover, .fx-select:focus { color: var(--text-primary); border-color: #5090d0; }
 
 .color-circle {
   width: 56px;

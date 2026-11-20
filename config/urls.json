@@ -32,13 +32,13 @@
     },
     {
       "name": "Homeassistant",
-      "url": "http://192.168.0.20:8123",
+      "url": "http://192.168.0.100:8123",
       "category": "Home",
       "order": 2
     },
     {
       "name": "CasaOS",
-      "url": "http://192.168.0.20/#/login",
+      "url": "http://192.168.0.100/#/login",
       "category": "Home",
       "order": 3
     },
@@ -113,6 +113,30 @@
       "url": "https://www.allpax.de",
       "category": "Production",
       "order": 2
+    },
+    {
+      "name": "Cormak",
+      "url": "https://www.cormak.pl/gb/577-air-tanks-for-compressors",
+      "category": "Tools",
+      "order": 1
+    },
+    {
+      "name": "Sorotec",
+      "url": "https://www.sorotec.de",
+      "category": "Tools",
+      "order": 2
+    },
+    {
+      "name": "Scandcut",
+      "url": "https://www.scandcut.se",
+      "category": "Tools",
+      "order": 3
+    },
+    {
+      "name": "Motedis",
+      "url": "https://www.motedis.nl/nl/Aluminium-profielen",
+      "category": "Production",
+      "order": 3
     }
   ]
 }

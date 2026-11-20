@@ -33,7 +33,7 @@ const cardTypes = Object.entries(cardModules)
     const name = path.split('/').pop().replace(/Card\.vue$/, '');
     const id = name.toLowerCase();
     const label = name.replace(/([A-Z])/g, ' $1').trim();
-    return { id, label, icon: mod.icon ?? '🃏' };
+    return { id, label: mod.label ?? label, icon: mod.icon ?? '🃏' };
   });
 </script>
 

@@ -15,7 +15,7 @@
         @mousedown="editing ? startDrag($event, i) : undefined"
       >
         <component :is="cardComponent(card.type)" :card="card" :ref="el => { if (el) cardCompRefs[i] = el }" />
-        <button v-if="editing && card.type === 'url'" class="card-url-add-btn" title="Add link" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
+        <button v-if="card.type === 'url'" class="card-url-add-btn" :class="{ 'card-url-add-btn--solo': !editing }" title="Add link" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing && card.type === 'wledconfig'" class="card-url-add-btn" title="Add device" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing && card.type === 'irtransmitter'" class="card-url-add-btn" title="Add transmitter" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
         <button v-if="editing && card.type === 'irreceiver'" class="card-url-add-btn" title="Add device" @click.stop="cardCompRefs[i]?.openAdd()">+</button>
@@ -71,6 +71,14 @@
       @cancel="editingCardIndex = null"
       @delete="deleteCard"
     />
+    <TowListCardEditModal
+      v-if="editingCardIndex !== null && currentEditCard?.type === 'towlist'"
+      :card="currentEditCard"
+      :isNew="editingCardIndex === 'new'"
+      @save="handleSave"
+      @cancel="editingCardIndex = null"
+      @delete="deleteCard"
+    />
     <WledCardEditModal
       v-if="editingCardIndex !== null && currentEditCard?.type === 'wled'"
       :card="currentEditCard"
@@ -81,6 +89,22 @@
     />
     <WiimCardEditModal
       v-if="editingCardIndex !== null && currentEditCard?.type === 'wiim'"
+      :card="currentEditCard"
+      :isNew="editingCardIndex === 'new'"
+      @save="handleSave"
+      @cancel="editingCardIndex = null"
+      @delete="deleteCard"
+    />
+    <KvmSwitchCardEditModal
+      v-if="editingCardIndex !== null && currentEditCard?.type === 'kvmswitch'"
+      :card="currentEditCard"
+      :isNew="editingCardIndex === 'new'"
+      @save="handleSave"
+      @cancel="editingCardIndex = null"
+      @delete="deleteCard"
+    />
+    <LgTvCardEditModal
+      v-if="editingCardIndex !== null && currentEditCard?.type === 'lgtv'"
       :card="currentEditCard"
       :isNew="editingCardIndex === 'new'"
       @save="handleSave"
@@ -112,7 +136,7 @@
       @delete="deleteCard"
     />
     <CardEditModal
-      v-if="editingCardIndex !== null && currentEditCard?.type !== 'grid' && currentEditCard?.type !== 'entities' && currentEditCard?.type !== 'musicassistant' && currentEditCard?.type !== 'notification' && currentEditCard?.type !== 'machine' && currentEditCard?.type !== 'tv' && currentEditCard?.type !== 'wled' && currentEditCard?.type !== 'wiim' && currentEditCard?.type !== 'scenes' && currentEditCard?.type !== 'irreceiver' && !(currentEditCard?.type === 'url' && editingCardIndex !== 'new')"
+      v-if="editingCardIndex !== null && currentEditCard?.type !== 'grid' && currentEditCard?.type !== 'entities' && currentEditCard?.type !== 'musicassistant' && currentEditCard?.type !== 'notification' && currentEditCard?.type !== 'machine' && currentEditCard?.type !== 'tv' && currentEditCard?.type !== 'wled' && currentEditCard?.type !== 'wiim' && currentEditCard?.type !== 'kvmswitch' && currentEditCard?.type !== 'lgtv' && currentEditCard?.type !== 'scenes' && currentEditCard?.type !== 'irreceiver' && currentEditCard?.type !== 'towlist' && !(currentEditCard?.type === 'url' && editingCardIndex !== 'new')"
       :card="currentEditCard"
       :isNew="editingCardIndex === 'new'"
       :title="currentEditCard?.type === 'weather' ? (editingCardIndex === 'new' ? 'New Weather Card' : 'Edit Weather Card') : currentEditCard?.type === 'camera' ? (editingCardIndex === 'new' ? 'New Camera Card' : 'Edit Camera Card') : currentEditCard?.type === 'webpage' ? (editingCardIndex === 'new' ? 'New Webpage Card' : 'Edit Webpage Card') : currentEditCard?.type === 'pizza' ? (editingCardIndex === 'new' ? 'New Pizza Card' : 'Edit Pizza Card') : currentEditCard?.type === 'url' ? (editingCardIndex === 'new' ? 'New Url Card' : 'Edit Url Card') : currentEditCard?.type === 'machine' ? (editingCardIndex === 'new' ? 'New Machines Card' : 'Edit Machines') : currentEditCard?.type === 'tv' ? (editingCardIndex === 'new' ? 'New TVs Card' : 'Edit TVs') : currentEditCard?.type === 'wledconfig' ? (editingCardIndex === 'new' ? 'New WLED Devices Card' : 'Edit WLED Devices') : ''"
@@ -147,16 +171,24 @@ import UrlCard from '../components/cards/UrlCard.vue';
 import WledCard from '../components/cards/WledCard.vue';
 import WledConfigCard from '../components/cards/WledConfigCard.vue';
 import WiimCard from '../components/cards/WiimCard.vue';
+import KvmSwitchCard from '../components/cards/KvmSwitchCard.vue';
+import LgTvCard from '../components/cards/LgTvCard.vue';
 import ScenesCard from '../components/cards/ScenesCard.vue';
 import ThemeCard from '../components/cards/ThemeCard.vue';
 import IrTransmitterCard from '../components/cards/IrTransmitterCard.vue';
 import IrReceiverCard from '../components/cards/IrReceiverCard.vue';
+import AboutCard from '../components/cards/AboutCard.vue';
+import TowListCard from '../components/cards/TowListCard.vue';
+import TowDetailCard from '../components/cards/TowDetailCard.vue';
 import CardEditModal from '../components/dialogs/CardEditModal.vue';
 import GridCardEditModal from '../components/dialogs/GridCardEditModal.vue';
 import EntitiesCardEditModal from '../components/dialogs/EntitiesCardEditModal.vue';
 import UrlCardEditModal from '../components/dialogs/UrlCardEditModal.vue';
+import TowListCardEditModal from '../components/dialogs/TowListCardEditModal.vue';
 import WledCardEditModal from '../components/dialogs/WledCardEditModal.vue';
 import WiimCardEditModal from '../components/dialogs/WiimCardEditModal.vue';
+import KvmSwitchCardEditModal from '../components/dialogs/KvmSwitchCardEditModal.vue';
+import LgTvCardEditModal from '../components/dialogs/LgTvCardEditModal.vue';
 import MusicAssistantCardEditModal from '../components/dialogs/MusicAssistantCardEditModal.vue';
 import NotificationCardEditModal from '../components/dialogs/NotificationCardEditModal.vue';
 import DeviceCardEditModal from '../components/dialogs/DeviceCardEditModal.vue';
@@ -343,7 +375,7 @@ async function savePosition(index, position) {
 const cardDefaults = {
   sensor: { type: 'sensor', title: 'New Sensor', mqtt_topic: '', unit: '', round: 1, position: { x: 1, y: 1, w: 2, h: 1 } },
   gauge:  { type: 'gauge',  title: 'New Gauge',  mqtt_topic: '', unit: '', min: 0, max: 100, round: 1, position: { x: 1, y: 1, w: 2, h: 2 } },
-  switch: { type: 'switch', title: 'New Switch', mqtt_topic: '', ha_entity_id: '', icon: '', position: { x: 1, y: 1, w: 2, h: 1 } },
+  switch: { type: 'switch', title: 'New Switch', mqtt_topic: '', icon: '', position: { x: 1, y: 1, w: 2, h: 1 } },
   grid:      { type: 'grid',      title: 'New Grid',      items: [], cols: 2, rows: 2, position: { x: 1, y: 1, w: 2, h: 2 } },
   indicator: { type: 'indicator', title: 'New Indicator', mqtt_topic: '', icon: '',   position: { x: 1, y: 1, w: 2, h: 1 } },
   text:   { type: 'text',   title: 'New Text',   mqtt_topic: '', position: { x: 1, y: 1, w: 2, h: 1 } },
@@ -352,7 +384,7 @@ const cardDefaults = {
   webpage:  { type: 'webpage',  title: '',             url: '',        position: { x: 1, y: 1, w: 3, h: 2 } },
   weather:   { type: 'weather',   location_name: 'Weather', lat: '', lon: '', position: { x: 1, y: 1, w: 3, h: 3 } },
   entities:  { type: 'entities',  rows: 2, items: [], position: { x: 1, y: 1, w: 2, h: 2 } },
-  musicassistant: { type: 'musicassistant', title: 'Music Assistant', ma_url: 'http://192.168.0.20:8095', ma_token: '', position: { x: 1, y: 1, w: 3, h: 3 } },
+  musicassistant: { type: 'musicassistant', title: 'Music Assistant', ma_url: 'http://192.168.0.100:8095', ma_token: '', position: { x: 1, y: 1, w: 3, h: 3 } },
   notification: { type: 'notification', title: 'New Notification Card', max_items: 20, position: { x: 1, y: 1, w: 2, h: 3 } },
   machine: { type: 'machine', title: 'Machines', mqtt_prefix: 'site_dashboard/machines', position: { x: 1, y: 1, w: 2, h: 3 } },
   tv: { type: 'tv', title: 'TVs', mqtt_prefix: 'site_dashboard/tvs', position: { x: 1, y: 1, w: 2, h: 3 } },
@@ -363,8 +395,13 @@ const cardDefaults = {
   irtransmitter: { type: 'irtransmitter', title: 'IR Transmitters',  position: { x: 1, y: 1, w: 2, h: 3 } },
   irreceiver:    { type: 'irreceiver',    title: 'IR Devices', config_key: 'default', position: { x: 1, y: 1, w: 2, h: 3 } },
   wiim: { type: 'wiim', title: 'WiiM Pro', ip: '192.168.0.22', position: { x: 1, y: 1, w: 3, h: 2 } },
+  lgtv: { type: 'lgtv', title: 'LG TV', tv_id: 'tv_shed', position: { x: 1, y: 1, w: 3, h: 2 } },
+  kvmswitch: { type: 'kvmswitch', title: 'KVM Switch', mqtt_topic: 'kvm/shed8b/active', pulse_ms: 300, position: { x: 1, y: 1, w: 3, h: 2 } },
   scenes: { type: 'scenes', title: 'New Scenes', position: { x: 1, y: 1, w: 2, h: 3 } },
   theme: { type: 'theme', title: 'Themes', position: { x: 1, y: 1, w: 2, h: 3 } },
+  about: { type: 'about', title: 'About', link_text: '', link_url: '', position: { x: 1, y: 1, w: 3, h: 4 } },
+  towlist: { type: 'towlist', years: [], position: { x: 1, y: 1, w: 3, h: 4 } },
+  towdetail: { type: 'towdetail', position: { x: 1, y: 1, w: 6, h: 6 } },
 };
 
 function findEmptyPosition(w, h) {
@@ -421,10 +458,15 @@ const typeMap = {
   wled: WledCard,
   wledconfig: WledConfigCard,
   wiim: WiimCard,
+  kvmswitch: KvmSwitchCard,
+  lgtv: LgTvCard,
   scenes: ScenesCard,
   theme: ThemeCard,
   irtransmitter: IrTransmitterCard,
   irreceiver: IrReceiverCard,
+  about: AboutCard,
+  towlist: TowListCard,
+  towdetail: TowDetailCard,
 };
 
 function cardComponent(type) {
@@ -595,6 +637,15 @@ async function addCard(newCard) {
 .card-url-add-btn:hover {
   color: var(--accent-blue);
   background: var(--bg-surface);
+}
+
+.card-url-add-btn--solo {
+  right: 0.4rem;
+  opacity: 0.35;
+}
+
+.card-wrapper:hover .card-url-add-btn--solo {
+  opacity: 1;
 }
 
 .card-edit-btn {

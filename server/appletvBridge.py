@@ -158,7 +158,8 @@ class DeviceBridge(pyatv.interface.PushListener):
             if payload in commands:
                 await commands[payload]()
                 log.info(f"[{self._id}] → {payload}")
-                await asyncio.sleep(0.1)
+                # Power changes take a moment to show up in power_state
+                await asyncio.sleep(3 if payload in ("turn_on", "turn_off") else 0.1)
                 await self._publish_poll()
             else:
                 log.warning(f"[{self._id}] Unknown command: {payload!r}")
@@ -226,8 +227,10 @@ def main():
         mqtt.CallbackAPIVersion.VERSION2,
         client_id=f"appletv-bridge-{os.getpid()}",
         clean_session=True,
-        reconnect_on_failure=False,
+        reconnect_on_failure=True,
     )
+    # Reconnect after a broker restart; _on_connect re-subscribes.
+    mq.reconnect_delay_set(min_delay=1, max_delay=30)
     if mqtt_cfg["username"]:
         mq.username_pw_set(mqtt_cfg["username"], mqtt_cfg["password"])
 
